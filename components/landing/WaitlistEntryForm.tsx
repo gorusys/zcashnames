@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { normalizeUsername } from "@/lib/zns/name";
-import { submitWaitlist, submitSurvey } from "@/lib/waitlist/waitlist";
+import { submitWaitlist } from "@/lib/waitlist/waitlist";
+import SurveyForm from "@/components/SurveyForm";
 
 interface Props {
   usdPerZec: number | null;
@@ -19,15 +20,6 @@ function generateReferralCode(): string {
   const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
-
-const USE_CASE_OPTIONS = [
-  "Send ZEC more easily",
-  "Receive ZEC more easily",
-  "Buy and sell names",
-  "Integrate with my app",
-  "Earn referral rewards",
-  "Earn affiliate rewards",
-];
 
 const COMMUNITY_LINKS = [
   { label: "X / Twitter", href: "https://x.com/zcashnames", d: "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" },
@@ -82,15 +74,6 @@ export default function WaitlistEntryForm({ usdPerZec, onConfirm, onReset }: Pro
   const [copied, setCopied] = useState(false);
   const [myReferralCode, setMyReferralCode] = useState("");
 
-  // ── Survey state (lives in modal, not inline form) ──
-  const [useCases, setUseCases] = useState<string[]>([]);
-  const [otherUseCase, setOtherUseCase] = useState("");
-  const [showOther, setShowOther] = useState(false);
-  const [wantEarlyTrial, setWantEarlyTrial] = useState<"yes" | "no" | null>(null);
-  const [mayContact, setMayContact] = useState<"yes" | "no" | null>(null);
-  const [showQuestions, setShowQuestions] = useState(false);
-  const [questions, setQuestions] = useState("");
-  const [surveySubmitting, setSurveySubmitting] = useState(false);
   const [surveyContactMsg, setSurveyContactMsg] = useState(false);
 
   const referredByRef = useRef<string>("");
@@ -195,39 +178,7 @@ export default function WaitlistEntryForm({ usdPerZec, onConfirm, onReset }: Pro
     setSubmitError("");
     setSubmitting(false);
     setModalView("confirm");
-    // Reset survey
-    setUseCases([]);
-    setOtherUseCase("");
-    setShowOther(false);
-    setWantEarlyTrial(null);
-    setMayContact(null);
-    setShowQuestions(false);
-    setQuestions("");
-    setSurveySubmitting(false);
     setSurveyContactMsg(false);
-  };
-
-  const toggleUseCase = (label: string) => {
-    setUseCases((prev) =>
-      prev.includes(label) ? prev.filter((v) => v !== label) : [...prev, label]
-    );
-  };
-
-  const handleSurveySubmit = async () => {
-    setSurveySubmitting(true);
-    const { error, shouldContact } = await submitSurvey({
-      referral_code: myReferralCode,
-      use_cases: useCases.length > 0 ? useCases : null,
-      other_use_case: otherUseCase || null,
-      want_early_trial: wantEarlyTrial === "yes" ? true : wantEarlyTrial === "no" ? false : null,
-      may_contact: mayContact === "yes" ? true : mayContact === "no" ? false : null,
-      comments: questions || null,
-    });
-    setSurveySubmitting(false);
-    if (!error) {
-      setSurveyContactMsg(shouldContact);
-      setModalView("thankyou");
-    }
   };
 
   const inputBase: React.CSSProperties = {
@@ -241,30 +192,6 @@ export default function WaitlistEntryForm({ usdPerZec, onConfirm, onReset }: Pro
     color: "var(--home-result-primary-fg)",
     boxShadow: "var(--home-result-primary-shadow)",
   };
-
-  const secondaryBtnStyle: React.CSSProperties = {
-    background: "var(--home-result-secondary-bg)",
-    color: "var(--home-result-secondary-fg)",
-    border: "1px solid var(--home-result-secondary-border)",
-  };
-
-  // ── Shared chip button renderer ──
-  const chipBtn = (label: string, selected: boolean, onClick: () => void) => (
-    <button
-      key={label}
-      type="button"
-      onClick={onClick}
-      className="px-5 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all capitalize"
-      style={{
-        background: selected ? "var(--home-result-primary-bg)" : "var(--color-raised)",
-        color: selected ? "var(--home-result-primary-fg)" : "var(--fg-body)",
-        border: selected ? "1px solid transparent" : "1px solid var(--border-muted)",
-        boxShadow: selected ? "var(--home-result-primary-shadow)" : "none",
-      }}
-    >
-      {label}
-    </button>
-  );
 
   return (
     <>
@@ -338,96 +265,14 @@ export default function WaitlistEntryForm({ usdPerZec, onConfirm, onReset }: Pro
             <div
               style={{ ...viewTransform("survey", modalView), transition: TRANSITION, position: modalView === "survey" ? "relative" : "absolute", inset: modalView !== "survey" ? 0 : undefined, overflow: "auto" }}
             >
-              <div className="p-8 flex flex-col gap-4 text-left">
-                <h2 className="text-xl font-bold text-center" style={{ color: "var(--fg-heading)" }}>Quick survey</h2>
-                <p className="text-sm text-center" style={{ color: "var(--fg-body)" }}>Help us build a better product.</p>
-
-                <div className="flex flex-col gap-4 rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--border-muted)" }}>
-                  {/* Use cases */}
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <p className="text-sm font-semibold shrink-0" style={{ color: "var(--fg-heading)" }}>I am interested in using ZcashNames to…</p>
-                      <span className="text-xs" style={{ color: "var(--fg-dim)", fontWeight: 400 }}>(select all that apply)</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-0.5">
-                      {USE_CASE_OPTIONS.map((label) => {
-                        const selected = useCases.includes(label);
-                        return (
-                          <button key={label} type="button" onClick={() => toggleUseCase(label)}
-                            className="px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all"
-                            style={{
-                              background: selected ? "var(--home-result-primary-bg)" : "var(--color-raised)",
-                              color: selected ? "var(--home-result-primary-fg)" : "var(--fg-body)",
-                              border: selected ? "1px solid transparent" : "1px solid var(--border-muted)",
-                              boxShadow: selected ? "var(--home-result-primary-shadow)" : "none",
-                            }}
-                          >{label}</button>
-                        );
-                      })}
-                      <button type="button" onClick={() => setShowOther((v) => !v)}
-                        className="px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all"
-                        style={{
-                          background: showOther ? "var(--home-result-primary-bg)" : "var(--color-raised)",
-                          color: showOther ? "var(--home-result-primary-fg)" : "var(--fg-body)",
-                          border: showOther ? "1px solid transparent" : "1px solid var(--border-muted)",
-                          boxShadow: showOther ? "var(--home-result-primary-shadow)" : "none",
-                        }}
-                      >Other</button>
-                    </div>
-                    {showOther && (
-                      <input type="text" value={otherUseCase} onChange={(e) => setOtherUseCase(e.target.value)} placeholder="Tell us more…"
-                        className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
-                        style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)", marginTop: "0.25rem" }}
-                      />
-                    )}
-                  </div>
-
-                  {/* Want to try before launch? */}
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-semibold" style={{ color: "var(--fg-heading)" }}>Want to try ZcashNames before launch?</p>
-                    <div className="flex gap-2">
-                      {chipBtn("Yes", wantEarlyTrial === "yes", () => setWantEarlyTrial("yes"))}
-                      {chipBtn("No", wantEarlyTrial === "no", () => setWantEarlyTrial("no"))}
-                    </div>
-                  </div>
-
-                  {/* Questions or comments */}
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-semibold" style={{ color: "var(--fg-heading)" }}>Questions or comments?</p>
-                    <div className="flex gap-2">
-                      {chipBtn("Yes", showQuestions, () => setShowQuestions(true))}
-                      {chipBtn("No", !showQuestions, () => { setShowQuestions(false); setQuestions(""); })}
-                    </div>
-                    {showQuestions && (
-                      <textarea value={questions} onChange={(e) => setQuestions(e.target.value)} placeholder="Type here…" rows={3}
-                        className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none transition-colors"
-                        style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
-                      />
-                    )}
-                  </div>
-
-                  {/* May we contact you? */}
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-semibold" style={{ color: "var(--fg-heading)" }}>May we contact you?</p>
-                    <div className="flex gap-2">
-                      {chipBtn("Yes", mayContact === "yes", () => setMayContact("yes"))}
-                      {chipBtn("No", mayContact === "no", () => setMayContact("no"))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Survey CTAs */}
-                <div className="flex gap-3 justify-center pt-2">
-                  <button type="button" onClick={handleSurveySubmit} disabled={surveySubmitting}
-                    className="px-8 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80"
-                    style={{ ...primaryBtnStyle, opacity: surveySubmitting ? 0.5 : 1 }}
-                  >{surveySubmitting ? "Submitting…" : "Submit"}</button>
-                  <button type="button" onClick={() => setModalView("confirm")}
-                    className="px-8 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80"
-                    style={secondaryBtnStyle}
-                  >Back</button>
-                </div>
-              </div>
+              <SurveyForm
+                referralCode={myReferralCode}
+                onComplete={(shouldContact) => {
+                  setSurveyContactMsg(shouldContact);
+                  setModalView("thankyou");
+                }}
+                onBack={() => setModalView("confirm")}
+              />
             </div>
 
             {/* ── Thank You view ── */}

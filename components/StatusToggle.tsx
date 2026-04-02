@@ -1,15 +1,41 @@
 "use client";
 
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { checkNetworkPassword } from "@/lib/zns/transaction";
+import { getHomeStats } from "@/lib/zns/resolve";
+import { getWaitlistStats } from "@/lib/waitlist/waitlist";
+import type { Network } from "@/lib/zns/name";
 
 type StatusState = "mainnet" | "testnet" | "waitlist";
+
+export type WaitlistStatsData = {
+  waitlist: number;
+  referred: number;
+  rewardsPot: number;
+};
+
+export type HomeStatsData = {
+  claimed: number;
+  forSale: number;
+  verifiedOnZcashMe: number;
+  syncedHeight: number;
+  uivk: string;
+};
+
+export type StatusData =
+  | { mode: "waitlist"; stats: WaitlistStatsData }
+  | { mode: "search"; network: Network; stats: HomeStatsData };
 
 interface StatusContextValue {
   status: StatusState;
   setStatus: (s: StatusState) => void;
   networkPassword: string;
   setNetworkPassword: (v: string) => void;
+  isSearchMode: boolean;
+  network: Network;
+  data: StatusData | null;
+  loading: boolean;
+  refresh: () => void;
 }
 
 const StatusContext = createContext<StatusContextValue>({
@@ -17,6 +43,11 @@ const StatusContext = createContext<StatusContextValue>({
   setStatus: () => {},
   networkPassword: "",
   setNetworkPassword: () => {},
+  isSearchMode: false,
+  network: "testnet",
+  data: null,
+  loading: true,
+  refresh: () => {},
 });
 
 export function useStatus() {
@@ -30,15 +61,49 @@ function applyStatus(s: StatusState) {
 export function StatusProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatusState] = useState<StatusState>("waitlist");
   const [networkPassword, setNetworkPassword] = useState("");
+  const [data, setData] = useState<StatusData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshCounter, setRefreshCounter] = useState(0);
+
+  const isSearchMode = status === "testnet" || status === "mainnet";
+  const network: Network = status === "mainnet" ? "mainnet" : "testnet";
 
   function setStatus(s: StatusState) {
     setStatusState(s);
     applyStatus(s);
   }
 
+  function refresh() {
+    setRefreshCounter((c) => c + 1);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    setData(null);
+    setLoading(true);
+
+    (async () => {
+      try {
+        if (isSearchMode) {
+          const stats = await getHomeStats(network);
+          if (!cancelled) setData({ mode: "search", network, stats });
+        } else {
+          const stats = await getWaitlistStats();
+          if (!cancelled) setData({ mode: "waitlist", stats });
+        }
+      } catch {
+        // keep data as null on error
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [status, refreshCounter]);
+
   return (
     <StatusContext.Provider
-      value={{ status, setStatus, networkPassword, setNetworkPassword }}
+      value={{ status, setStatus, networkPassword, setNetworkPassword, isSearchMode, network, data, loading, refresh }}
     >
       {children}
     </StatusContext.Provider>

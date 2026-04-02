@@ -1,96 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getHomeStats } from "@/lib/zns/resolve";
-import { getWaitlistStats } from "@/lib/waitlist/waitlist";
+import { useState } from "react";
 import { useStatus } from "@/components/StatusToggle";
 
-type HomeStats = {
-  claimed: number;
-  forSale: number;
-  verifiedOnZcashMe: number;
-};
-type WaitlistStats = {
-  waitlist: number;
-  referred: number;
-  rewardsPot: number;
-};
 type StatKey = "claimed" | "forSale" | "authenticated" | "waitlist" | "referred" | "rewardsPot";
 
-const DEFAULT_HOME_STATS: HomeStats = { claimed: 0, forSale: 0, verifiedOnZcashMe: 0 };
-const DEFAULT_WAITLIST_STATS: WaitlistStats = { waitlist: 0, referred: 0, rewardsPot: 0 };
-
-export default function MarketStats({ refreshKey = 0 }: { refreshKey?: number }) {
-  const { status } = useStatus();
-  const [homeStats, setHomeStats] = useState<HomeStats>(DEFAULT_HOME_STATS);
-  const [waitlistStats, setWaitlistStats] = useState<WaitlistStats>(DEFAULT_WAITLIST_STATS);
+export default function MarketStats() {
+  const { data, loading } = useStatus();
   const [activeKey, setActiveKey] = useState<StatKey | null>(null);
   const [hoverKey, setHoverKey] = useState<StatKey | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    const isSearchMode = status === "testnet" || status === "mainnet";
-
-    (async () => {
-      try {
-        if (!isSearchMode) {
-          const next = await getWaitlistStats();
-          if (!cancelled) {
-            setWaitlistStats(next);
-            setLoading(false);
-          }
-        } else {
-          const network = status === "mainnet" ? "mainnet" : "testnet";
-          const next = await getHomeStats(network);
-          if (!cancelled) {
-            setHomeStats(next);
-            setLoading(false);
-          }
-        }
-      } catch {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    const interval = setInterval(async () => {
-      try {
-        if (!isSearchMode) {
-          const next = await getWaitlistStats();
-          if (!cancelled) setWaitlistStats(next);
-        } else {
-          const network = status === "mainnet" ? "mainnet" : "testnet";
-          const next = await getHomeStats(network);
-          if (!cancelled) setHomeStats(next);
-        }
-      } catch {
-        // ignore polling errors
-      }
-    }, 30_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [status, refreshKey]);
-
-  const isSearchMode = status === "testnet" || status === "mainnet";
 
   const items =
-    !isSearchMode
+    data?.mode === "waitlist"
       ? [
           {
             key: "waitlist" as const,
             label: "Waitlist",
-            value: waitlistStats.waitlist.toLocaleString(),
+            value: data.stats.waitlist.toLocaleString(),
             helpText: "Total number of people on the ZcashNames waitlist.",
           },
           {
             key: "referred" as const,
             label: "Referred",
-            value: waitlistStats.referred.toLocaleString(),
+            value: data.stats.referred.toLocaleString(),
             helpText: "Number of waitlist members who were referred by someone.",
           },
           {
@@ -109,38 +41,41 @@ export default function MarketStats({ refreshKey = 0 }: { refreshKey?: number })
                   <line x1="10" y1="2" x2="10" y2="18" stroke="currentColor" strokeWidth="1.5" />
                   <path d="M6 6H14L6 14H14" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                 </svg>
-                {" "}{waitlistStats.rewardsPot}
+                {" "}{data.stats.rewardsPot}
               </>
             ),
             helpText: "Get 0.05 ZEC for every name sold using your waitlist referral link.",
           },
         ]
-      : [
-          {
-            key: "claimed" as const,
-            label: "Claimed",
-            value: homeStats.claimed.toLocaleString(),
-            helpText:
-              "Claimed means this .zcash name is already registered to an owner on-chain.",
-          },
-          {
-            key: "forSale" as const,
-            label: "For Sale",
-            value: homeStats.forSale.toLocaleString(),
-            helpText:
-              "For Sale means the current owner has listed the name and can accept a purchase.",
-          },
-          {
-            key: "authenticated" as const,
-            label: "Authenticated",
-            value: homeStats.verifiedOnZcashMe.toLocaleString(),
-            helpText:
-              "Authenticated means ownership has been confirmed with a linked zcashme identity.",
-          },
-        ];
+      : data?.mode === "search"
+        ? [
+            {
+              key: "claimed" as const,
+              label: "Claimed",
+              value: data.stats.claimed.toLocaleString(),
+              helpText:
+                "Claimed means this .zcash name is already registered to an owner on-chain.",
+            },
+            {
+              key: "forSale" as const,
+              label: "For Sale",
+              value: data.stats.forSale.toLocaleString(),
+              helpText:
+                "For Sale means the current owner has listed the name and can accept a purchase.",
+            },
+            {
+              key: "authenticated" as const,
+              label: "Authenticated",
+              value: data.stats.verifiedOnZcashMe.toLocaleString(),
+              helpText:
+                "Authenticated means ownership has been confirmed with a linked zcashme identity.",
+            },
+          ]
+        : [];
 
   const activeItem = items.find((item) => item.key === activeKey);
   const isHelpVisible = Boolean(activeItem);
+  const showLoading = loading || !data;
 
   return (
     <section className="relative z-[2] w-full px-4 pb-10 sm:px-6 sm:pb-12 max-[700px]:pb-8">
@@ -153,25 +88,28 @@ export default function MarketStats({ refreshKey = 0 }: { refreshKey?: number })
         }}
       >
         <div className="grid grid-cols-3">
-          {items.map((item, index) => {
-            const isHighlighted = hoverKey === item.key || activeKey === item.key;
+          {(showLoading ? [0, 1, 2] : items).map((item, index) => {
+            const isPlaceholder = typeof item === "number";
+            const key = isPlaceholder ? index : item.key;
+            const isHighlighted = !isPlaceholder && (hoverKey === item.key || activeKey === item.key);
 
             return (
               <button
-                key={item.key}
+                key={key}
                 type="button"
-                aria-pressed={activeKey === item.key}
+                disabled={isPlaceholder}
+                aria-pressed={!isPlaceholder && activeKey === item.key}
                 aria-controls="market-stats-help"
                 onClick={() => {
-                  setActiveKey((curr) => (curr === item.key ? null : item.key));
+                  if (!isPlaceholder) setActiveKey((curr) => (curr === item.key ? null : item.key));
                 }}
-                onMouseEnter={() => setHoverKey(item.key)}
+                onMouseEnter={() => { if (!isPlaceholder) setHoverKey(item.key); }}
                 onMouseLeave={() => {
-                  setHoverKey((curr) => (curr === item.key ? null : curr));
+                  if (!isPlaceholder) setHoverKey((curr) => (curr === item.key ? null : curr));
                 }}
-                onFocus={() => setHoverKey(item.key)}
+                onFocus={() => { if (!isPlaceholder) setHoverKey(item.key); }}
                 onBlur={() => {
-                  setHoverKey((curr) => (curr === item.key ? null : curr));
+                  if (!isPlaceholder) setHoverKey((curr) => (curr === item.key ? null : curr));
                 }}
                 className={`cursor-pointer px-3 py-2 text-center transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)] sm:px-5 sm:py-3 ${
                   index > 0 ? "border-l" : ""
@@ -189,14 +127,18 @@ export default function MarketStats({ refreshKey = 0 }: { refreshKey?: number })
                   }}
                 >
                   <div className="tabular-nums text-[clamp(1.25rem,2.5vw,1.85rem)] font-semibold leading-none tracking-[-0.015em] text-fg-heading">
-                    {loading ? (
+                    {isPlaceholder ? (
                       <span className="inline-block h-[0.85em] w-12 animate-pulse rounded-md bg-fg-dim/20 align-middle" />
                     ) : (
                       item.value
                     )}
                   </div>
                   <div className="mt-1 text-[0.74rem] font-semibold uppercase tracking-[0.08em] text-fg-dim sm:mt-1.5 sm:text-[0.78rem]">
-                    {item.label}
+                    {isPlaceholder ? (
+                      <span className="inline-block h-[0.6em] w-10 animate-pulse rounded-md bg-fg-dim/10 align-middle" />
+                    ) : (
+                      item.label
+                    )}
                   </div>
                 </div>
               </button>

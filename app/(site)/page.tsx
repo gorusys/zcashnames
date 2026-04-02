@@ -13,25 +13,17 @@ import HowItWorks from "@/components/landing/HowItWorks";
 import Link from "next/link";
 import { useStatus } from "@/components/StatusToggle";
 import { resolveName } from "@/lib/zns/resolve";
-import { normalizeUsername, type Network } from "@/lib/zns/name";
+import { normalizeUsername } from "@/lib/zns/name";
 import { isPopularName } from "@/lib/name-frequency";
 import type { ResolveName } from "@/lib/types";
-import { submitSurvey, confirmWaitlistEmail } from "@/lib/waitlist/waitlist";
+import { confirmWaitlistEmail } from "@/lib/waitlist/waitlist";
+import SurveyForm from "@/components/SurveyForm";
 
 const PhoneStage = dynamic(() => import("@/components/landing/PhoneStage"), { ssr: false });
 
 type VerifiedModalView = "confirm" | "survey" | "thankyou";
 
 const VERIFIED_MODAL_TRANSITION = "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
-const SURVEY_USE_CASE_OPTIONS = [
-  "Send ZEC more easily",
-  "Receive ZEC more easily",
-  "Buy and sell names",
-  "Integrate with my app",
-  "Earn referral rewards",
-  "Earn affiliate rewards",
-];
-
 function verifiedModalViewTransform(
   view: VerifiedModalView,
   current: VerifiedModalView,
@@ -52,9 +44,7 @@ function verifiedModalViewTransform(
 }
 
 export default function HomePage() {
-  const { status } = useStatus();
-  const isSearchMode = status === "mainnet" || status === "testnet";
-  const network: Network = status === "mainnet" ? "mainnet" : "testnet";
+  const { status, isSearchMode, network, refresh } = useStatus();
 
   const [input, setInput] = useState("");
   const [results, setResults] = useState<ResolveName[]>([]);
@@ -62,20 +52,12 @@ export default function HomePage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const [waitlistConfirmed, setWaitlistConfirmed] = useState(false);
-  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
+
 
   const [verifiedBanner, setVerifiedBanner] = useState<string | null>(null);
   const [verifiedModal, setVerifiedModal] = useState<{ name: string; ref: string } | null>(null);
   const [vmCopied, setVmCopied] = useState(false);
   const [verifiedModalView, setVerifiedModalView] = useState<VerifiedModalView>("confirm");
-  const [surveyUseCases, setSurveyUseCases] = useState<string[]>([]);
-  const [surveyOtherUseCase, setSurveyOtherUseCase] = useState("");
-  const [surveyShowOther, setSurveyShowOther] = useState(false);
-  const [surveyWantEarlyTrial, setSurveyWantEarlyTrial] = useState<"yes" | "no" | null>(null);
-  const [surveyMayContact, setSurveyMayContact] = useState<"yes" | "no" | null>(null);
-  const [surveyShowQuestions, setSurveyShowQuestions] = useState(false);
-  const [surveyQuestions, setSurveyQuestions] = useState("");
-  const [surveySubmitting, setSurveySubmitting] = useState(false);
   const [surveyContactMsg, setSurveyContactMsg] = useState(false);
   const [isClientMounted, setIsClientMounted] = useState(false);
   const [tokenConfirming, setTokenConfirming] = useState(false);
@@ -182,60 +164,8 @@ export default function HomePage() {
     setVerifiedModal(null);
     setVmCopied(false);
     setVerifiedModalView("confirm");
-    setSurveyUseCases([]);
-    setSurveyOtherUseCase("");
-    setSurveyShowOther(false);
-    setSurveyWantEarlyTrial(null);
-    setSurveyMayContact(null);
-    setSurveyShowQuestions(false);
-    setSurveyQuestions("");
-    setSurveySubmitting(false);
     setSurveyContactMsg(false);
   }
-
-  function toggleSurveyUseCase(label: string) {
-    setSurveyUseCases((prev) =>
-      prev.includes(label) ? prev.filter((value) => value !== label) : [...prev, label],
-    );
-  }
-
-  async function handleVerifiedSurveySubmit() {
-    if (!verifiedModal?.ref || surveySubmitting) return;
-
-    setSurveySubmitting(true);
-    const { error, shouldContact } = await submitSurvey({
-      referral_code: verifiedModal.ref,
-      use_cases: surveyUseCases.length > 0 ? surveyUseCases : null,
-      other_use_case: surveyOtherUseCase || null,
-      want_early_trial:
-        surveyWantEarlyTrial === "yes" ? true : surveyWantEarlyTrial === "no" ? false : null,
-      may_contact: surveyMayContact === "yes" ? true : surveyMayContact === "no" ? false : null,
-      comments: surveyQuestions || null,
-    });
-    setSurveySubmitting(false);
-
-    if (!error) {
-      setSurveyContactMsg(shouldContact);
-      setVerifiedModalView("thankyou");
-    }
-  }
-
-  const surveyChipButton = (label: string, selected: boolean, onClick: () => void) => (
-    <button
-      key={label}
-      type="button"
-      onClick={onClick}
-      className="px-5 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all capitalize"
-      style={{
-        background: selected ? "var(--home-result-primary-bg)" : "var(--color-raised)",
-        color: selected ? "var(--home-result-primary-fg)" : "var(--fg-body)",
-        border: selected ? "1px solid transparent" : "1px solid var(--border-muted)",
-        boxShadow: selected ? "var(--home-result-primary-shadow)" : "none",
-      }}
-    >
-      {label}
-    </button>
-  );
 
   const form = isSearchMode ? (
     <>
@@ -296,7 +226,7 @@ export default function HomePage() {
       usdPerZec={null}
       onConfirm={() => {
         setWaitlistConfirmed(true);
-        setStatsRefreshKey((current) => current + 1);
+        refresh();
       }}
       onReset={() => setWaitlistConfirmed(false)}
     />
@@ -357,7 +287,7 @@ export default function HomePage() {
         />
       </section>
 
-      <MarketStats refreshKey={statsRefreshKey} />
+      <MarketStats />
 
       <div className="relative z-[2] -mt-4 mb-2 flex justify-center">
         {isSearchMode ? (
@@ -523,129 +453,14 @@ export default function HomePage() {
                   overflow: "auto",
                 }}
               >
-                <div className="p-8 flex flex-col gap-4 text-left">
-                  <h2 className="text-xl font-bold text-center" style={{ color: "var(--fg-heading)" }}>Quick survey</h2>
-                  <p className="text-sm text-center" style={{ color: "var(--fg-body)" }}>Help us build a better product.</p>
-
-                  <div className="flex flex-col gap-4 rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--border-muted)" }}>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <p className="text-sm font-semibold shrink-0" style={{ color: "var(--fg-heading)" }}>I am interested in using ZcashNames to...</p>
-                        <span className="text-xs" style={{ color: "var(--fg-dim)", fontWeight: 400 }}>(select all that apply)</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 pt-0.5">
-                        {SURVEY_USE_CASE_OPTIONS.map((label) => {
-                          const selected = surveyUseCases.includes(label);
-                          return (
-                            <button
-                              key={label}
-                              type="button"
-                              onClick={() => toggleSurveyUseCase(label)}
-                              className="px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all"
-                              style={{
-                                background: selected ? "var(--home-result-primary-bg)" : "var(--color-raised)",
-                                color: selected ? "var(--home-result-primary-fg)" : "var(--fg-body)",
-                                border: selected ? "1px solid transparent" : "1px solid var(--border-muted)",
-                                boxShadow: selected ? "var(--home-result-primary-shadow)" : "none",
-                              }}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                        <button
-                          type="button"
-                          onClick={() => setSurveyShowOther((v) => !v)}
-                          className="px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all"
-                          style={{
-                            background: surveyShowOther ? "var(--home-result-primary-bg)" : "var(--color-raised)",
-                            color: surveyShowOther ? "var(--home-result-primary-fg)" : "var(--fg-body)",
-                            border: surveyShowOther ? "1px solid transparent" : "1px solid var(--border-muted)",
-                            boxShadow: surveyShowOther ? "var(--home-result-primary-shadow)" : "none",
-                          }}
-                        >
-                          Other
-                        </button>
-                      </div>
-                      {surveyShowOther && (
-                        <input
-                          type="text"
-                          value={surveyOtherUseCase}
-                          onChange={(e) => setSurveyOtherUseCase(e.target.value)}
-                          placeholder="Tell us more..."
-                          className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
-                          style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)", marginTop: "0.25rem" }}
-                        />
-                      )}
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <p className="text-sm font-semibold" style={{ color: "var(--fg-heading)" }}>Want to try ZcashNames before launch?</p>
-                      <div className="flex gap-2">
-                        {surveyChipButton("Yes", surveyWantEarlyTrial === "yes", () => setSurveyWantEarlyTrial("yes"))}
-                        {surveyChipButton("No", surveyWantEarlyTrial === "no", () => setSurveyWantEarlyTrial("no"))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <p className="text-sm font-semibold" style={{ color: "var(--fg-heading)" }}>Questions or comments?</p>
-                      <div className="flex gap-2">
-                        {surveyChipButton("Yes", surveyShowQuestions, () => setSurveyShowQuestions(true))}
-                        {surveyChipButton("No", !surveyShowQuestions, () => {
-                          setSurveyShowQuestions(false);
-                          setSurveyQuestions("");
-                        })}
-                      </div>
-                      {surveyShowQuestions && (
-                        <textarea
-                          value={surveyQuestions}
-                          onChange={(e) => setSurveyQuestions(e.target.value)}
-                          placeholder="Type here..."
-                          rows={3}
-                          className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none transition-colors"
-                          style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
-                        />
-                      )}
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <p className="text-sm font-semibold" style={{ color: "var(--fg-heading)" }}>May we contact you?</p>
-                      <div className="flex gap-2">
-                        {surveyChipButton("Yes", surveyMayContact === "yes", () => setSurveyMayContact("yes"))}
-                        {surveyChipButton("No", surveyMayContact === "no", () => setSurveyMayContact("no"))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 justify-center pt-2">
-                    <button
-                      type="button"
-                      onClick={handleVerifiedSurveySubmit}
-                      disabled={surveySubmitting}
-                      className="px-8 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80"
-                      style={{
-                        background: "var(--home-result-primary-bg)",
-                        color: "var(--home-result-primary-fg)",
-                        boxShadow: "var(--home-result-primary-shadow)",
-                        opacity: surveySubmitting ? 0.5 : 1,
-                      }}
-                    >
-                      {surveySubmitting ? "Submitting..." : "Submit"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVerifiedModalView("confirm")}
-                      className="px-8 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80"
-                      style={{
-                        background: "var(--home-result-secondary-bg)",
-                        color: "var(--home-result-secondary-fg)",
-                        border: "1px solid var(--home-result-secondary-border)",
-                      }}
-                    >
-                      Back
-                    </button>
-                  </div>
-                </div>
+                <SurveyForm
+                  referralCode={verifiedModal.ref}
+                  onComplete={(shouldContact) => {
+                    setSurveyContactMsg(shouldContact);
+                    setVerifiedModalView("thankyou");
+                  }}
+                  onBack={() => setVerifiedModalView("confirm")}
+                />
               </div>
 
               <div
