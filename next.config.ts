@@ -39,6 +39,16 @@ const withNextra = nextra({
 });
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/api/confirm",
+        has: [{ type: "query", key: "token", value: "(?<token>.+)" }],
+        destination: "/?token=:token",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {

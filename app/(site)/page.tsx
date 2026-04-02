@@ -16,7 +16,7 @@ import { resolveName } from "@/lib/zns/resolve";
 import { normalizeUsername, type Network } from "@/lib/zns/name";
 import { isPopularName } from "@/lib/name-frequency";
 import type { ResolveName } from "@/lib/types";
-import { submitSurvey } from "@/lib/waitlist/waitlist";
+import { submitSurvey, confirmWaitlistEmail } from "@/lib/waitlist/waitlist";
 
 const PhoneStage = dynamic(() => import("@/components/landing/PhoneStage"), { ssr: false });
 
@@ -78,6 +78,7 @@ export default function HomePage() {
   const [surveySubmitting, setSurveySubmitting] = useState(false);
   const [surveyContactMsg, setSurveyContactMsg] = useState(false);
   const [isClientMounted, setIsClientMounted] = useState(false);
+  const [tokenConfirming, setTokenConfirming] = useState(false);
 
   useEffect(() => {
     setIsClientMounted(true);
@@ -104,6 +105,34 @@ export default function HomePage() {
       url.searchParams.delete("name");
       window.history.replaceState({}, "", url.pathname + url.search);
     }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    if (!token) return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("token");
+    window.history.replaceState({}, "", url.pathname + url.search);
+
+    setTokenConfirming(true);
+    confirmWaitlistEmail(token)
+      .then((result) => {
+        if (result.status === "success") {
+          setVerifiedModal({ name: result.name ?? "", ref: result.ref ?? "" });
+        } else if (result.status === "already") {
+          setVerifiedBanner("Your email is already confirmed.");
+        } else {
+          setVerifiedBanner("Invalid or expired confirmation link.");
+        }
+      })
+      .catch(() => {
+        setVerifiedBanner("Something went wrong confirming your email.");
+      })
+      .finally(() => {
+        setTokenConfirming(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -294,6 +323,23 @@ export default function HomePage() {
             >
               &times;
             </button>
+          </div>
+        </div>
+      )}
+
+      {tokenConfirming && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent"
+              style={{ color: "var(--fg-heading)" }}
+            />
+            <p className="text-sm font-medium" style={{ color: "var(--fg-heading)" }}>
+              Confirming your email…
+            </p>
           </div>
         </div>
       )}

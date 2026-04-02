@@ -6,10 +6,18 @@ import { db } from "@/lib/db";
 import { sendFollowUp } from "@/lib/email/followup";
 import { sendWaitlistConfirmationEmail } from "@/lib/email/waitlist";
 import { allowRateLimit } from "@/lib/security/rate-limit";
-import { buildWaitlistConfirmToken } from "@/lib/waitlist/confirm-token";
+import {
+  buildWaitlistConfirmToken,
+  isWaitlistConfirmSignatureValid,
+  isWaitlistConfirmTokenExpired,
+  parseWaitlistConfirmToken,
+} from "@/lib/waitlist/confirm-token";
+import { sendWaitlistWelcomeEmail } from "@/lib/email/waitlist";
 import { normalizeUsername } from "@/lib/zns/name";
 
 const GENERIC_ERROR = "Something went wrong. Please try again.";
+const CONFIRM_IP_LIMIT = 40;
+const CONFIRM_IP_WINDOW_MS = 15 * 60 * 1000;
 const WAITLIST_IP_LIMIT = 12;
 const WAITLIST_IP_WINDOW_MS = 10 * 60 * 1000;
 const WAITLIST_EMAIL_LIMIT = 4;
@@ -206,7 +214,7 @@ export async function submitWaitlist(
     waitlistId,
     email: normalizedEmail,
   });
-  const confirmUrl = `${resolveBaseUrl(headerStore)}/api/confirm?token=${encodeURIComponent(confirmToken)}`;
+  const confirmUrl = `${resolveBaseUrl(headerStore)}/?token=${encodeURIComponent(confirmToken)}`;
 
   try {
     await sendWaitlistConfirmationEmail({
@@ -306,4 +314,72 @@ export async function getWaitlistStats(): Promise<{
   } catch {
     return { waitlist: 0, referred: 0, rewardsPot: 0 };
   }
+}
+
+export interface ConfirmWaitlistResult {
+  status: "success" | "already" | "invalid";
+  ref?: string;
+  name?: string;
+}
+
+export async function confirmWaitlistEmail(
+  token: string,
+): Promise<ConfirmWaitlistResult> {
+  const headerStore = await headers();
+  const ip = resolveClientIp(headerStore);
+
+  if (!allowRateLimit(`confirm:ip:${ip}`, CONFIRM_IP_LIMIT, CONFIRM_IP_WINDOW_MS)) {
+    return { status: "invalid" };
+  }
+
+  const parsed = parseWaitlistConfirmToken(token);
+  if (!parsed || isWaitlistConfirmTokenExpired(parsed)) {
+    return { status: "invalid" };
+  }
+
+  const { data, error } = await db
+    .from("zn_waitlist")
+    .select("id, name, email, referral_code, email_verified")
+    .eq("id", parsed.waitlistId)
+    .single();
+
+  if (error || !data) {
+    return { status: "invalid" };
+  }
+
+  const row = data as WaitlistRow;
+  if (!isWaitlistConfirmSignatureValid(parsed, row.email)) {
+    return { status: "invalid" };
+  }
+
+  if (row.email_verified) {
+    return { status: "already" };
+  }
+
+  const { error: updateError } = await db
+    .from("zn_waitlist")
+    .update({ email_verified: true })
+    .eq("id", row.id);
+
+  if (updateError) {
+    console.error("Waitlist confirm update error:", updateError.message);
+    return { status: "invalid" };
+  }
+
+  try {
+    await sendWaitlistWelcomeEmail({
+      email: row.email,
+      name: row.name,
+      referralCode: row.referral_code ?? "",
+      baseUrl: resolveBaseUrl(headerStore),
+    });
+  } catch (emailError) {
+    console.error("Waitlist welcome email error:", emailError);
+  }
+
+  return {
+    status: "success",
+    ref: row.referral_code ?? undefined,
+    name: row.name,
+  };
 }
