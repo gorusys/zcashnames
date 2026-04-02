@@ -1,0 +1,120 @@
+# Memo Format Specification
+
+All ZNS operations are encoded as UTF-8 strings in the 512-byte Orchard shielded memo field. Every memo starts with the `ZNS:` prefix followed by an action keyword.
+
+## Actions
+
+### CLAIM (admin-signed)
+
+Register a new name.
+
+```
+ZNS:CLAIM:<name>:<unified_address>:<base64_signature>
+```
+
+**Example:**
+```
+ZNS:CLAIM:alice:utest1f32kn6c4zvn54xr8wfsnxmj9hzpu2mwgtxzpzwcw3490...:R2hTYbdE...
+```
+
+**Signature payload:** `CLAIM:<name>:<unified_address>`
+
+**Validation:**
+- Name must pass [validation rules](name-validation.md)
+- Name must not already be registered
+- Address must not already have a name
+- Transaction amount must be >= [claim cost](../getting-started/pricing.md)
+- First-come-first-served by block height
+
+---
+
+### BUY (admin-signed)
+
+Purchase a listed name.
+
+```
+ZNS:BUY:<name>:<buyer_unified_address>:<base64_signature>
+```
+
+**Example:**
+```
+ZNS:BUY:alice:utest1abc123...:CQID...
+```
+
+**Signature payload:** `BUY:<name>:<buyer_unified_address>`
+
+**Validation:**
+- Name must have an active listing
+- Transaction amount must be >= listing price
+- Transfers ownership to buyer, clears listing, resets nonce to 0
+
+---
+
+### LIST (admin-signed)
+
+List a name for sale on the marketplace.
+
+```
+ZNS:LIST:<name>:<price_in_zatoshis>:<nonce>:<base64_signature>
+```
+
+**Example:**
+```
+ZNS:LIST:alice:100000000:1:R2hTYbdEO/5OGFKcTDa/fXyDWLWZS...
+```
+
+**Signature payload:** `LIST:<name>:<price>:<nonce>`
+
+**Validation:**
+- Name must be registered
+- Ed25519 signature must verify against the admin public key
+- Nonce must be strictly greater than the current nonce
+
+---
+
+### DELIST (admin-signed)
+
+Remove a name from the marketplace.
+
+```
+ZNS:DELIST:<name>:<nonce>:<base64_signature>
+```
+
+**Signature payload:** `DELIST:<name>:<nonce>`
+
+**Validation:**
+- Same as LIST (signature + nonce check)
+
+---
+
+### UPDATE (admin-signed)
+
+Change the address a name resolves to.
+
+```
+ZNS:UPDATE:<name>:<new_unified_address>:<nonce>:<base64_signature>
+```
+
+**Signature payload:** `UPDATE:<name>:<new_unified_address>:<nonce>`
+
+**Validation:**
+- Same as LIST (signature + nonce check)
+- New address must not already have a name registered to it
+
+---
+
+## Signing protocol
+
+All ZNS actions (CLAIM, BUY, LIST, DELIST, UPDATE) use Ed25519 signatures for authentication.
+
+**Process:**
+1. Construct the canonical payload string (ASCII)
+2. Sign with the Ed25519 private key
+3. Encode the 64-byte signature as standard base64 (RFC 4648)
+4. Append as the last colon-separated field in the memo
+
+**Replay protection:** Each name has a nonce counter stored in the registry. Admin actions must include a nonce strictly greater than the current value. The indexer increments the nonce on each successful admin action.
+
+## Size constraint
+
+The Orchard memo field is 512 bytes. All ZNS memos must fit within this limit. In practice, the longest memos are CLAIM and UPDATE (which include a full unified address).

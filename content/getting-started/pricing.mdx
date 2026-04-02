@@ -1,0 +1,63 @@
+# Pricing
+
+Claim costs are tiered by name length. Shorter names cost more because they're scarcer.
+
+| Name Length | Cost (ZEC) | Cost (Zatoshis) |
+|-------------|-----------|-----------------|
+| 1 character | 6.00 | 600,000,000 |
+| 2 characters | 4.25 | 425,000,000 |
+| 3 characters | 3.00 | 300,000,000 |
+| 4 characters | 1.50 | 150,000,000 |
+| 5 characters | 0.75 | 75,000,000 |
+| 6 characters | 0.50 | 50,000,000 |
+| 7+ characters | 0.25 | 25,000,000 |
+
+> 1 ZEC = 100,000,000 zatoshis
+
+## How pricing is set
+
+Pricing is not hardcoded in the app — it lives on-chain. The admin sets pricing by sending a signed `ZNS:SET_PRICING` memo to the registry address:
+
+```
+ZNS:SET_PRICING:<tier1>:<tier2>:<tier3>:<tier4>:<tier5>:<tier6>:<tier7>:<nonce>:<ed25519_signature>
+```
+
+Each tier is a price in zatoshis. The signature is computed over the payload so the indexer can verify the pricing update came from the admin key. The nonce prevents replay attacks, same as any other admin action.
+
+When the indexer sees a valid `SET_PRICING` memo on-chain, it updates its internal pricing table. This is what the web app reads when it shows you the claim cost.
+
+## Verifying pricing
+
+Anyone can verify the current pricing by querying the `status` RPC:
+
+```bash
+curl -X POST https://light.zcash.me/zns-testnet \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"status","params":{}}'
+```
+
+The response includes the pricing object:
+
+```json
+{
+  "pricing": {
+    "nonce": 5,
+    "height": 1234567,
+    "tiers": [600000000, 425000000, 300000000, 150000000, 75000000, 50000000, 25000000]
+  }
+}
+```
+
+- `tiers`: array indexed by name length minus one (index 0 = 1-char names, index 6 = 7+ char names)
+- `height`: the block height where this pricing was set
+- `nonce`: replay-protection counter for pricing updates
+
+If you run your own indexer, it will derive the exact same pricing from the same on-chain data. The chain is the source of truth — not the web app, not the hosted RPC.
+
+## Marketplace pricing
+
+Names listed for sale have their own prices set by the seller. When you buy a listed name, you pay the seller's listed price — not the claim cost. Claim pricing only applies to unregistered names.
+
+## USD estimates
+
+The search interface shows approximate USD equivalents using the current ZEC/USD rate, fetched from Coinbase, CoinGecko, or Kraken (with fallback).

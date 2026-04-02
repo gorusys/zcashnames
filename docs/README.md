@@ -1,0 +1,29 @@
+# Zcash Name Service (ZNS)
+
+ZNS maps human-readable names like **alice.zcash** to Zcash shielded addresses. Instead of sharing a long unified address, you share a name.
+
+## How it works
+
+Every ZNS operation is a standard Zcash shielded transaction. Names are claimed, bought, sold, and updated by sending transactions with specially formatted memos to the ZNS registry address. A decentralized indexer watches the blockchain, parses these memos, and maintains the registry.
+
+There is no token, no smart contract, and no separate chain. ZNS lives entirely within Zcash's existing shielded memo field.
+
+## Key properties
+
+- **First-come-first-served** — names are assigned by block height
+- **One name per address** — each unified address maps to exactly one name, and vice versa
+- **Privacy-preserving** — all operations use Orchard shielded transactions
+- **Stateless authentication** — admin actions (list, delist, update) are verified with Ed25519 signatures and OTP, no login required
+- **Marketplace built in** — names can be listed for sale and purchased on-chain
+
+## Supported suffixes
+
+- `.zcash`
+- `.zec`
+
+## Quick links
+
+- [Search & Claim a Name](getting-started/search-and-claim.md)
+- [Pricing](getting-started/pricing.md)
+- [RPC API Reference](developer-guide/zns-rpc-api.md)
+- [TypeScript SDK](developer-guide/typescript-sdk.md)

@@ -1,0 +1,66 @@
+# Running Your Own Indexer
+
+The ZNS indexer is open-source Rust. Anyone can run their own instance to independently verify the registry state — this is what makes ZNS trustless.
+
+## What the indexer does
+
+1. Connects to a [lightwalletd](https://github.com/zcash/lightwalletd) instance via gRPC
+2. Streams blocks from the Zcash blockchain
+3. Trial-decrypts Orchard shielded notes using its unified full viewing key (UFVK)
+4. Parses `ZNS:` prefixed memos and validates them against protocol rules
+5. Applies valid operations to a local SQLite registry
+6. Exposes the registry as a read-only JSON-RPC 2.0 API
+
+The indexer never writes to the blockchain. It is a passive observer that derives state from on-chain data.
+
+## Why run your own
+
+- **Verify independently:** your indexer will derive the exact same registry state as any other indexer watching the same chain
+- **No trust required:** you don't depend on our hosted RPC endpoint
+- **Self-host integrations:** point your own apps at a local indexer instead of the public one
+
+## Prerequisites
+
+- Rust stable toolchain
+- A lightwalletd instance synced to testnet or mainnet (e.g. [lightwalletd](https://github.com/zcash/lightwalletd) or [Zaino](https://github.com/zingolabs/zaino))
+- The ZNS UFVK — published in every `status` RPC response so you can verify your indexer is watching the same key
+
+## Build from source
+
+```bash
+git clone https://github.com/zcashme/ZNS.git
+cd ZNS
+cargo build --release
+```
+
+## Run
+
+```bash
+./target/release/zns-indexer \
+  --lightwalletd-url https://zecrocks.com:443 \
+  --db-path ./zns.db \
+  --rpc-port 3000
+```
+
+See the [indexer repository](https://github.com/zcashme/ZNS) for the full list of configuration options and flags.
+
+## Verify state
+
+Once synced, query your local instance the same way you'd query the hosted one:
+
+```bash
+curl -X POST http://localhost:3000 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"status","params":{}}'
+```
+
+The `synced_height`, `registered`, and `listed` counts should match any other indexer watching the same network. The `admin_pubkey` and `ufvk` fields let you confirm your indexer is using the correct keys.
+
+## Hosted endpoints
+
+If you don't want to run your own, ZcashNames operates public endpoints:
+
+| Network | URL |
+|---------|-----|
+| Testnet | `https://light.zcash.me/zns-testnet` |
+| Mainnet (beta) | `https://light.zcash.me/zns-mainnet-test` |
