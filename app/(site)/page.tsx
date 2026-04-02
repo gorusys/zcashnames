@@ -325,19 +325,14 @@ export default function HomePage() {
               <path d="M12 2.4v3.2M12 18.4v3.2M2.4 12h3.2M18.4 12h3.2M5.6 5.6l2.2 2.2M16.2 16.2l2.2 2.2M18.4 5.6l-2.2 2.2M7.8 16.2l-2.2 2.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               <circle cx="12" cy="12" r="8.85" stroke="currentColor" strokeWidth="1.4" />
             </svg>
-            Explorer
+            Explorer &rarr;
           </Link>
         ) : (
           <Link
             href="/leaders"
-            className="text-[1.05rem] font-semibold text-fg-muted hover:text-fg-heading transition-colors"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--home-result-link-border)] bg-[var(--home-result-link-bg)] px-4 py-2 text-[1.02rem] font-semibold text-[var(--home-result-link-fg)] transition-[transform,background-color] duration-[140ms] hover:-translate-y-px hover:bg-[var(--home-result-link-hover-bg)]"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="mr-1.5 inline-block align-[-0.15em]"
-              style={{ width: "1.1em", height: "1.1em" }}
-            >
+            <svg viewBox="0 0 24 24" fill="none" style={{ width: "1.08em", height: "1.08em" }} aria-hidden="true">
               <path d="M8 21L12 17L16 21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M8 21V14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               <path d="M16 21V14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
