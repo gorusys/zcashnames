@@ -1,7 +1,9 @@
 "use server";
 
-import { resolve, status, fetchClaimCost, events } from "@/lib/zns/client";
+import { resolve, registrationStatus, status, fetchClaimCost, events } from "@/lib/zns/client";
 import { normalizeUsername, isValidUsername, zatsToZec, type Network } from "@/lib/zns/name";
+import { getExchangeRate } from "@/lib/exchange-rate";
+import { getReservedName } from "@/lib/zns/reserved";
 import type { ResolveName } from "@/lib/types";
 
 export async function resolveName(
@@ -15,12 +17,28 @@ export async function resolveName(
   }
 
   const registration = await resolve(normalized, network);
+  const nameStatus = registrationStatus(registration);
 
-  if (!registration) {
+  if (nameStatus === "available") {
+    const reserved = await getReservedName(normalized);
+
+    if (reserved && !reserved.redeemed && reserved.category === "offensive") {
+      return { status: "blocked", query: normalized };
+    }
+
     const claimCostZats = await fetchClaimCost(normalized, network);
     if (claimCostZats == null) {
       throw new Error("Pricing unavailable — indexer may be down.");
     }
+
+    if (reserved && !reserved.redeemed) {
+      return {
+        status: "reserved",
+        query: normalized,
+        claimCost: { zats: claimCostZats, zec: zatsToZec(claimCostZats) },
+      };
+    }
+
     return {
       status: "available",
       query: normalized,
@@ -28,20 +46,22 @@ export async function resolveName(
     };
   }
 
-  if (registration.listing) {
+  const reg = {
+    name: registration!.name,
+    address: registration!.address,
+    txid: registration!.txid,
+    height: registration!.height,
+    nonce: registration!.nonce,
+  };
+
+  if (nameStatus === "forsale") {
     return {
       status: "listed",
       query: normalized,
-      registration: {
-        name: registration.name,
-        address: registration.address,
-        txid: registration.txid,
-        height: registration.height,
-        nonce: registration.nonce,
-      },
+      registration: reg,
       listingPrice: {
-        zats: registration.listing.price,
-        zec: zatsToZec(registration.listing.price),
+        zats: registration!.listing!.price,
+        zec: zatsToZec(registration!.listing!.price),
       },
     };
   }
@@ -49,20 +69,8 @@ export async function resolveName(
   return {
     status: "registered",
     query: normalized,
-    registration: {
-      name: registration.name,
-      address: registration.address,
-      txid: registration.txid,
-      height: registration.height,
-      nonce: registration.nonce,
-    },
+    registration: reg,
   };
-}
-
-export async function searchAction(formData: FormData): Promise<ResolveName> {
-  const query = formData.get("query") as string;
-  const network = (formData.get("network") as Network) || "testnet";
-  return resolveName(query, network);
 }
 
 export async function getHomeStats(network: Network = "testnet"): Promise<{ claimed: number; forSale: number; verifiedOnZcashMe: number; syncedHeight: number; uivk: string }> {
@@ -84,6 +92,10 @@ export async function getHomeStats(network: Network = "testnet"): Promise<{ clai
       uivk: "",
     };
   }
+}
+
+export async function getUsdPerZec(): Promise<number | null> {
+  return getExchangeRate();
 }
 
 export async function getEvents(

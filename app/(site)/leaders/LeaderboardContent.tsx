@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Area,
@@ -659,7 +660,11 @@ export default function LeaderboardContent() {
                     className="border-b align-top last:border-b-0"
                     style={{ borderColor: "var(--leaders-card-border)" }}
                   >
-                    <td className="px-4 py-3 font-mono text-[0.78rem] text-fg-muted sm:px-6">{row.date}</td>
+                    <td className="px-4 py-3 font-mono text-[0.78rem] sm:px-6">
+                      <Link href={`/leaders/${row.date}`} className="text-fg-muted underline-offset-2 hover:underline">
+                        {row.date}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 sm:px-6">
                       <RankingCell
                         entry={rankingsMode === "daily" ? row.daily[0] : row.allTime[0]}

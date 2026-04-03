@@ -3,15 +3,18 @@
 import type React from "react";
 import Image from "next/image";
 
-type AvailabilityState = "available" | "forsale" | "unavailable";
-type ResultAction = "claim" | "buy" | "update" | "list" | "delist" | "remove";
+import { useState } from "react";
+
+type AvailabilityState = "available" | "forsale" | "unavailable" | "reserved" | "blocked";
+type ResultAction = "claim" | "buy" | "update" | "list" | "delist" | "remove" | "unlock";
 
 interface HomeResultCardProps {
   displayName: string;
   availabilityState: AvailabilityState;
   priceLabel?: string;
+  usdLabel?: string;
   isPopularName?: boolean;
-  onAction: (action: ResultAction) => void;
+  onAction: (action: ResultAction, unlockCode?: string) => void;
   onDismiss?: () => void;
 }
 
@@ -49,6 +52,7 @@ export default function HomeResultCard({
   displayName,
   availabilityState,
   priceLabel,
+  usdLabel,
   isPopularName = false,
   onAction,
   onDismiss,
@@ -60,9 +64,13 @@ export default function HomeResultCard({
   const cipherscanUrl = `https://cipherscan.app/?name=${encodedName}`;
   const zcashMeUrl = `https://zcash.me/${encodedName}`;
 
+  const [unlockInput, setUnlockInput] = useState("");
+
   const isAvailable = availabilityState === "available";
   const isForSale = availabilityState === "forsale";
   const isUnavailable = availabilityState === "unavailable";
+  const isReserved = availabilityState === "reserved";
+  const isBlocked = availabilityState === "blocked";
   const showFeatureChips = isAvailable || isForSale;
   const footerChips = isAvailable
     ? [
@@ -165,10 +173,61 @@ export default function HomeResultCard({
               }
             />
           )}
+
+          {isReserved && (
+            <StatusBadge
+              variant="neutral"
+              label="Reserved"
+              icon={
+                <svg
+                  viewBox="0 0 16 16"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="7" width="10" height="7" rx="1.5" />
+                  <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+                </svg>
+              }
+            />
+          )}
+
+          {isBlocked && (
+            <StatusBadge
+              variant="negative"
+              label="Not Available"
+              icon={
+                <svg
+                  viewBox="0 0 16 16"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="8" cy="8" r="6.3" />
+                  <path d="M5 5l6 6" />
+                </svg>
+              }
+            />
+          )}
           {(isAvailable || isForSale) && (
-            <p className="m-0 text-[var(--home-result-price-color)] text-[clamp(1.02rem,1.85vw,1.3rem)] font-extrabold tracking-[-0.012em]">
-              {priceLabel}
-            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="m-0 text-[var(--home-result-price-color)] text-[clamp(1.02rem,1.85vw,1.3rem)] font-extrabold tracking-[-0.012em]">
+                {priceLabel}
+              </p>
+              {usdLabel && (
+                <span className="text-[0.82rem] font-medium text-[var(--fg-muted)]">
+                  {usdLabel}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -230,6 +289,48 @@ export default function HomeResultCard({
           >
             Remove
           </button>
+        </div>
+      )}
+
+      {isReserved && (
+        <div className="relative z-[1] mt-3 flex flex-col gap-2">
+          <p className="text-sm" style={{ color: "var(--fg-muted)" }}>
+            This name is reserved. Enter an unlock code to claim it.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={unlockInput}
+              onChange={(e) => setUnlockInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && unlockInput.trim()) onAction("unlock", unlockInput.trim());
+              }}
+              placeholder="XXXX-XXXX-XXXX"
+              className="rounded-xl px-4 py-2.5 text-sm font-mono tracking-wider outline-none"
+              style={{
+                background: "var(--color-raised, var(--home-result-secondary-bg))",
+                border: "1.5px solid var(--faq-border, var(--home-result-secondary-border))",
+                color: "var(--fg-heading)",
+                width: "200px",
+              }}
+            />
+            <button
+              type="button"
+              className="home-result-action is-primary"
+              disabled={!unlockInput.trim()}
+              onClick={() => onAction("unlock", unlockInput.trim())}
+            >
+              Unlock
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isBlocked && (
+        <div className="relative z-[1] mt-3">
+          <p className="text-sm" style={{ color: "var(--fg-muted)" }}>
+            This name cannot be registered.
+          </p>
         </div>
       )}
 

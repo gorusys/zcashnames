@@ -22,6 +22,7 @@ export interface ModalTarget {
   registrationAddress?: string;
   network: Network;
   networkPassword: string;
+  unlockCode?: string;
 }
 
 interface Zip321ModalProps {
@@ -69,7 +70,7 @@ function parsePrice(raw: string): number | null {
 // ---------------------------------------------------------------------------
 
 export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
-  const { name, action, registrationAddress, network, networkPassword } = target;
+  const { name, action, registrationAddress, network, networkPassword, unlockCode } = target;
   const { ZIP321_RECIPIENT_ADDRESS, OTP_SIGNIN_ADDR, OTP_AMOUNT, OTP_MAX_ATTEMPTS } =
     getNetworkConstants(network);
 
@@ -195,6 +196,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
         address: addressInput.trim() || undefined,
         network,
         password: networkPassword,
+        unlockCode,
       });
       if (cancelledRef.current) return;
       if (!result.ok) { setInputError(result.error); return; }
@@ -222,6 +224,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
         priceZats: needsPrice ? Math.round(parsePrice(priceInput)! * 1e8) : undefined,
         network,
         password: networkPassword,
+        unlockCode,
         memo: zvsMemo,
         otp: code,
       });

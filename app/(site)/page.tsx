@@ -12,8 +12,8 @@ import FAQ from "@/components/landing/FAQ";
 import HowItWorks from "@/components/landing/HowItWorks";
 import Link from "next/link";
 import { useStatus } from "@/components/StatusToggle";
-import { resolveName } from "@/lib/zns/resolve";
-import { normalizeUsername } from "@/lib/zns/name";
+import { resolveName, getUsdPerZec } from "@/lib/zns/resolve";
+import { normalizeUsername, formatUsdEquivalent } from "@/lib/zns/name";
 import { isPopularName } from "@/lib/name-frequency";
 import type { ResolveName, Action } from "@/lib/types";
 import { confirmWaitlistEmail } from "@/lib/waitlist/waitlist";
@@ -64,9 +64,11 @@ export default function HomePage() {
   const [isClientMounted, setIsClientMounted] = useState(false);
   const [tokenConfirming, setTokenConfirming] = useState(false);
   const [modalTarget, setModalTarget] = useState<ModalTarget | null>(null);
+  const [usdPerZec, setUsdPerZec] = useState<number | null>(null);
 
   useEffect(() => {
     setIsClientMounted(true);
+    getUsdPerZec().then(setUsdPerZec).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -195,27 +197,43 @@ export default function HomePage() {
               availabilityState={
                 item.status === "available"
                   ? "available"
-                  : item.status === "listed"
-                    ? "forsale"
-                    : "unavailable"
+                  : item.status === "reserved"
+                    ? "reserved"
+                    : item.status === "blocked"
+                      ? "blocked"
+                      : item.status === "listed"
+                        ? "forsale"
+                        : "unavailable"
               }
               priceLabel={
                 item.status === "available"
                   ? `${item.claimCost.zec} ZEC`
-                  : item.status === "listed"
-                    ? `${item.listingPrice.zec} ZEC`
-                    : undefined
+                  : item.status === "reserved"
+                    ? `${item.claimCost.zec} ZEC`
+                    : item.status === "listed"
+                      ? `${item.listingPrice.zec} ZEC`
+                      : undefined
               }
-              onAction={(action) => {
+              usdLabel={
+                item.status === "available"
+                  ? formatUsdEquivalent(item.claimCost.zec, usdPerZec)
+                  : item.status === "reserved"
+                    ? formatUsdEquivalent(item.claimCost.zec, usdPerZec)
+                    : item.status === "listed"
+                      ? formatUsdEquivalent(item.listingPrice.zec, usdPerZec)
+                      : undefined
+              }
+              onAction={(action, unlockCode) => {
                 if (action === "remove") {
                   setResults((prev) => prev.filter((existing) => existing.query !== item.query));
                   return;
                 }
                 const t: ModalTarget = {
                   name: item.query,
-                  action: action as Action,
+                  action: action === "unlock" ? "claim" : action as Action,
                   network,
                   networkPassword,
+                  unlockCode,
                 };
                 if (item.status === "registered" || item.status === "listed") {
                   t.registrationAddress = item.registration.address;
@@ -237,7 +255,7 @@ export default function HomePage() {
     </>
   ) : (
     <WaitlistEntryForm
-      usdPerZec={null}
+      usdPerZec={usdPerZec}
       onConfirm={() => {
         setWaitlistConfirmed(true);
         refresh();

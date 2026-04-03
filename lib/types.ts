@@ -62,6 +62,15 @@ export type ResolveName =
       claimCost: { zats: number; zec: number }
     }
   | {
+      status: 'reserved'
+      query: string
+      claimCost: { zats: number; zec: number }
+    }
+  | {
+      status: 'blocked'
+      query: string
+    }
+  | {
       status: 'registered'
       query: string
       registration: { name: string; address: string; txid: string; height: number; nonce: number }

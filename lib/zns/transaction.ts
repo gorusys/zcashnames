@@ -11,6 +11,7 @@ import {
 import { normalizeUsername, isValidUsername, validateAddress, zatsToZec, type Network } from "@/lib/zns/name";
 import { type Action, MAX_LIST_FOR_SALE_AMOUNT } from "@/lib/types";
 import { verifyOtp } from "@/lib/payment/otp";
+import { getReservedName, verifyUnlockCode } from "@/lib/zns/reserved";
 
 const NETWORK_PASSWORDS: Record<Network, string | undefined> = {
   testnet: process.env.TESTNET_PASSWORD,
@@ -30,13 +31,9 @@ export async function checkNetworkPassword(
   return { ok: verifyNetworkPassword(network, password) };
 }
 
-interface TransactionResult {
-  ok: boolean;
-  memo?: string;
-  amount?: number;
-  amountZec?: number;
-  error?: string;
-}
+export type TransactionResult =
+  | { ok: true; memo: string; amount: number; amountZec: number }
+  | { ok: false; error: string };
 
 interface TransactionInput {
   name: string;
@@ -47,6 +44,7 @@ interface TransactionInput {
   password?: string;
   memo?: string;
   otp?: string;
+  unlockCode?: string;
 }
 
 export async function buildTransaction(input: TransactionInput): Promise<TransactionResult> {
@@ -77,6 +75,20 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
         if (!address) return { ok: false, error: "Address is required." };
         const addrCheck = validateAddress(address);
         if (!addrCheck.valid) return { ok: false, error: addrCheck.warning || "Invalid address format." };
+
+        const reserved = await getReservedName(name);
+        if (reserved && !reserved.redeemed) {
+          if (reserved.category === "offensive") {
+            return { ok: false, error: "This name is not available." };
+          }
+          if (!input.unlockCode) {
+            return { ok: false, error: "Unlock code is required for this name." };
+          }
+          if (!verifyUnlockCode(name, input.unlockCode)) {
+            return { ok: false, error: "Invalid unlock code." };
+          }
+        }
+
         const costZats = await fetchClaimCost(name, network);
         if (costZats == null) return { ok: false, error: "Pricing unavailable — indexer may be down." };
         const memo = await buildSignedClaimMemo(name, address, network);
