@@ -4,7 +4,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { buildTransaction } from "@/lib/zns/transaction";
+import { buildTransaction, checkUnlockCode } from "@/lib/zns/transaction";
 import { validateAddress } from "@/lib/zns/name";
 import { buildZcashUri } from "@/lib/payment/zip321";
 import { generateSessionId, buildZvsMemo } from "@/lib/payment/memo";
@@ -22,7 +22,7 @@ export interface ModalTarget {
   registrationAddress?: string;
   network: Network;
   networkPassword: string;
-  unlockCode?: string;
+  isReserved?: boolean;
 }
 
 interface Zip321ModalProps {
@@ -34,9 +34,9 @@ interface Zip321ModalProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-type Phase = "input" | "otp" | "payment";
+type Phase = "unlock" | "input" | "otp" | "payment";
 
-const PHASE_ORDER: Phase[] = ["input", "otp", "payment"];
+const PHASE_ORDER: Phase[] = ["unlock", "input", "otp", "payment"];
 const TRANSITION = "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
 
 function phaseTransform(
@@ -71,17 +71,24 @@ function parsePrice(raw: string): number | null {
 // ---------------------------------------------------------------------------
 
 export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
-  const { name, action, registrationAddress, network, networkPassword, unlockCode } = target;
+  const { name, action, registrationAddress, network, networkPassword, isReserved } = target;
   const { ZIP321_RECIPIENT_ADDRESS, OTP_SIGNIN_ADDR, OTP_AMOUNT, OTP_MAX_ATTEMPTS } =
     getNetworkConstants(network);
 
   const needsAddress = action === "claim" || action === "buy" || action === "update";
   const needsPrice = action === "list";
   const needsOtp = action === "update" || action === "list" || action === "delist" || action === "release";
+  const needsUnlock = isReserved && action === "claim";
   const displayName = `${name}.zcash`;
 
   // Phase
-  const [phase, setPhase] = useState<Phase>("input");
+  const [phase, setPhase] = useState<Phase>(needsUnlock ? "unlock" : "input");
+
+  // Unlock phase
+  const [unlockInput, setUnlockInput] = useState("");
+  const [unlockError, setUnlockError] = useState("");
+  const [unlockLoading, setUnlockLoading] = useState(false);
+  const [verifiedUnlockCode, setVerifiedUnlockCode] = useState<string | undefined>();
 
   // Input phase
   const [addressInput, setAddressInput] = useState("");
@@ -154,6 +161,26 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
 
   // ---- Handlers ----
 
+  async function handleUnlock() {
+    if (unlockLoading) return;
+    const code = unlockInput.trim();
+    if (!code) { setUnlockError("Enter your unlock code."); return; }
+
+    setUnlockError("");
+    setUnlockLoading(true);
+    try {
+      const result = await checkUnlockCode(name, code);
+      if (cancelledRef.current) return;
+      if (!result.ok) { setUnlockError(result.error || "Invalid unlock code."); return; }
+      setVerifiedUnlockCode(code);
+      setPhase("input");
+    } catch {
+      if (!cancelledRef.current) setUnlockError("Something went wrong. Try again.");
+    } finally {
+      if (!cancelledRef.current) setUnlockLoading(false);
+    }
+  }
+
   async function handleContinue() {
     if (inputLoading) return;
     setInputError("");
@@ -197,7 +224,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
         address: addressInput.trim() || undefined,
         network,
         password: networkPassword,
-        unlockCode,
+        unlockCode: verifiedUnlockCode,
       });
       if (cancelledRef.current) return;
       if (!result.ok) { setInputError(result.error); return; }
@@ -225,7 +252,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
         priceZats: needsPrice ? Math.round(parsePrice(priceInput)! * 1e8) : undefined,
         network,
         password: networkPassword,
-        unlockCode,
+        unlockCode: verifiedUnlockCode,
         memo: zvsMemo,
         otp: code,
       });
@@ -307,6 +334,72 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* ── Phase 0: Unlock (reserved names only) ── */}
+        {needsUnlock && (
+          <div
+            style={{
+              ...phaseTransform("unlock", phase),
+              transition: TRANSITION,
+              position: phase === "unlock" ? "relative" : "absolute",
+              inset: phase !== "unlock" ? 0 : undefined,
+              overflow: "auto",
+            }}
+          >
+            <div className="p-8 flex flex-col gap-5">
+              <div>
+                <h2 className="text-lg font-bold" style={{ color: "var(--fg-heading)" }}>
+                  Reserved Name
+                </h2>
+                <p className="text-sm mt-1" style={{ color: "var(--fg-body)" }}>
+                  <strong>{displayName}</strong> is reserved. Enter your unlock code to continue.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
+                  Unlock Code
+                </label>
+                <input
+                  type="text"
+                  value={unlockInput}
+                  onChange={(e) => { setUnlockInput(e.target.value.toUpperCase()); setUnlockError(""); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleUnlock(); }}
+                  placeholder="XXXX-XXXX-XXXX"
+                  autoFocus
+                  className="w-full rounded-xl px-4 py-3 text-sm font-mono tracking-[0.15em] outline-none text-center"
+                  style={inputStyle(unlockError ? "var(--accent-red, #e05252)" : undefined)}
+                />
+              </div>
+
+              {unlockError && (
+                <p className="text-sm font-semibold" style={{ color: "var(--accent-red, #e05252)" }}>
+                  {unlockError}
+                </p>
+              )}
+
+              <div className="flex gap-3 justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80"
+                  style={secondaryBtnStyle}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUnlock}
+                  disabled={unlockLoading}
+                  className="px-5 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-50"
+                  style={primaryBtnStyle}
+                >
+                  {unlockLoading ? "Verifying…" : "Unlock"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Phase 1: Input ── */}
         <div
           style={{

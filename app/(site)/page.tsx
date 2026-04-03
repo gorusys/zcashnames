@@ -223,17 +223,17 @@ export default function HomePage() {
                       ? formatUsdEquivalent(item.listingPrice.zec, usdPerZec)
                       : undefined
               }
-              onAction={(action, unlockCode) => {
+              onAction={(action) => {
                 if (action === "remove") {
                   setResults((prev) => prev.filter((existing) => existing.query !== item.query));
                   return;
                 }
                 const t: ModalTarget = {
                   name: item.query,
-                  action: action === "unlock" ? "claim" : action as Action,
+                  action: action as Action,
                   network,
                   networkPassword,
-                  unlockCode,
+                  isReserved: item.status === "reserved",
                 };
                 if (item.status === "registered" || item.status === "listed") {
                   t.registrationAddress = item.registration.address;

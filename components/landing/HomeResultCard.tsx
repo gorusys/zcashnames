@@ -3,10 +3,8 @@
 import type React from "react";
 import Image from "next/image";
 
-import { useState } from "react";
-
 type AvailabilityState = "available" | "forsale" | "unavailable" | "reserved" | "blocked";
-type ResultAction = "claim" | "buy" | "update" | "list" | "delist" | "release" | "remove" | "unlock";
+type ResultAction = "claim" | "buy" | "update" | "list" | "delist" | "release" | "remove";
 
 interface HomeResultCardProps {
   displayName: string;
@@ -14,7 +12,7 @@ interface HomeResultCardProps {
   priceLabel?: string;
   usdLabel?: string;
   isPopularName?: boolean;
-  onAction: (action: ResultAction, unlockCode?: string) => void;
+  onAction: (action: ResultAction) => void;
   onDismiss?: () => void;
 }
 
@@ -63,8 +61,6 @@ export default function HomeResultCard({
   const firstBucket = firstBucketForName(charCount);
   const cipherscanUrl = `https://cipherscan.app/?name=${encodedName}`;
   const zcashMeUrl = `https://zcash.me/${encodedName}`;
-
-  const [unlockInput, setUnlockInput] = useState("");
 
   const isAvailable = availabilityState === "available";
   const isForSale = availabilityState === "forsale";
@@ -217,7 +213,7 @@ export default function HomeResultCard({
               }
             />
           )}
-          {(isAvailable || isForSale) && (
+          {(isAvailable || isForSale || isReserved) && (
             <div className="flex items-baseline gap-2">
               <p className="m-0 text-[var(--home-result-price-color)] text-[clamp(1.02rem,1.85vw,1.3rem)] font-extrabold tracking-[-0.012em]">
                 {priceLabel}
@@ -300,36 +296,14 @@ export default function HomeResultCard({
       )}
 
       {isReserved && (
-        <div className="relative z-[1] mt-3 flex flex-col gap-2">
-          <p className="text-sm" style={{ color: "var(--fg-muted)" }}>
-            This name is reserved. Enter an unlock code to claim it.
-          </p>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={unlockInput}
-              onChange={(e) => setUnlockInput(e.target.value.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && unlockInput.trim()) onAction("unlock", unlockInput.trim());
-              }}
-              placeholder="XXXX-XXXX-XXXX"
-              className="rounded-xl px-4 py-2.5 text-sm font-mono tracking-wider outline-none"
-              style={{
-                background: "var(--color-raised, var(--home-result-secondary-bg))",
-                border: "1.5px solid var(--faq-border, var(--home-result-secondary-border))",
-                color: "var(--fg-heading)",
-                width: "200px",
-              }}
-            />
-            <button
-              type="button"
-              className="home-result-action is-primary"
-              disabled={!unlockInput.trim()}
-              onClick={() => onAction("unlock", unlockInput.trim())}
-            >
-              Unlock
-            </button>
-          </div>
+        <div className="relative z-[1] mt-3 flex items-center justify-start gap-2 max-[700px]:flex-wrap">
+          <button
+            type="button"
+            className="home-result-action is-primary"
+            onClick={() => onAction("claim")}
+          >
+            Claim Name
+          </button>
         </div>
       )}
 

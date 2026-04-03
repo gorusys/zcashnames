@@ -32,6 +32,18 @@ export async function checkNetworkPassword(
   return { ok: verifyNetworkPassword(network, password) };
 }
 
+export async function checkUnlockCode(
+  name: string,
+  code: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const normalized = normalizeUsername(name);
+  const reserved = await getReservedName(normalized);
+  if (!reserved || reserved.redeemed) return { ok: false, error: "This name is not reserved." };
+  if (reserved.category === "offensive") return { ok: false, error: "This name is not available." };
+  if (!verifyUnlockCode(normalized, code)) return { ok: false, error: "Invalid unlock code." };
+  return { ok: true };
+}
+
 export type TransactionResult =
   | { ok: true; memo: string; amount: number; amountZec: number }
   | { ok: false; error: string };
