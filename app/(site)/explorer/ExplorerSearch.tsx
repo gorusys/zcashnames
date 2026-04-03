@@ -118,7 +118,7 @@ const ExplorerSearch = forwardRef<ExplorerSearchHandle, { network: Network; onAc
                   </button>
                 </div>
 
-                {nameResult.status !== "available" && (
+                {(nameResult.status === "registered" || nameResult.status === "listed") && (
                   <div className="flex flex-col gap-1.5 text-sm">
                     <div>
                       <span className="text-fg-dim">Address: </span>
