@@ -73,7 +73,7 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
   }
   const needsOtp = input.action === "update" || input.action === "list" || input.action === "delist" || input.action === "release";
 
-  let reg = needsOtp ? await resolve(name, network) : null;
+  const reg = needsOtp ? await resolve(name, network) : null;
   if (needsOtp) {
     if (!reg) return { ok: false, error: "Name is not registered." };
     if (!input.memo || !input.otp) return { ok: false, error: "Verification required." };

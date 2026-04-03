@@ -36,19 +36,6 @@ interface Zip321ModalProps {
 
 type Phase = "unlock" | "input" | "otp" | "payment";
 
-const PHASE_ORDER: Phase[] = ["unlock", "input", "otp", "payment"];
-const TRANSITION = "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
-
-function phaseTransform(
-  view: Phase,
-  current: Phase,
-): { transform: string; pointerEvents: "auto" | "none" } {
-  const vi = PHASE_ORDER.indexOf(view);
-  const ci = PHASE_ORDER.indexOf(current);
-  if (vi === ci) return { transform: "translate(0,0)", pointerEvents: "auto" };
-  if (vi < ci) return { transform: "translateY(-100%)", pointerEvents: "none" };
-  return { transform: "translateY(100%)", pointerEvents: "none" };
-}
 
 const ACTION_LABEL: Record<Action, string> = {
   claim: "Claim",
@@ -114,10 +101,6 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
   const [qrFg, setQrFg] = useState("#f0f0f0");
   const [qrBg, setQrBg] = useState("#1e1e1e");
 
-  // Prevent state updates after unmount
-  const cancelledRef = useRef(false);
-  useEffect(() => () => { cancelledRef.current = true; }, []);
-
   // Read CSS variable colors for QR on mount
   useEffect(() => {
     if (!containerRef.current) return;
@@ -170,14 +153,14 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
     setUnlockLoading(true);
     try {
       const result = await checkUnlockCode(name, code);
-      if (cancelledRef.current) return;
+
       if (!result.ok) { setUnlockError(result.error || "Invalid unlock code."); return; }
       setVerifiedUnlockCode(code);
       setPhase("input");
     } catch {
-      if (!cancelledRef.current) setUnlockError("Something went wrong. Try again.");
+      setUnlockError("Something went wrong. Try again.");
     } finally {
-      if (!cancelledRef.current) setUnlockLoading(false);
+      setUnlockLoading(false);
     }
   }
 
@@ -226,13 +209,13 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
         password: networkPassword,
         unlockCode: verifiedUnlockCode,
       });
-      if (cancelledRef.current) return;
+
       if (!result.ok) { setInputError(result.error); return; }
       goToPayment(result.memo, result.amountZec);
     } catch {
-      if (!cancelledRef.current) setInputError("Something went wrong. Try again.");
+      setInputError("Something went wrong. Try again.");
     } finally {
-      if (!cancelledRef.current) setInputLoading(false);
+      setInputLoading(false);
     }
   }
 
@@ -256,7 +239,6 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
         memo: zvsMemo,
         otp: code,
       });
-      if (cancelledRef.current) return;
       if (!result.ok) {
         setOtpAttempts((a) => a + 1);
         setOtpError(result.error);
@@ -265,9 +247,9 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
       }
       goToPayment(result.memo, result.amountZec);
     } catch {
-      if (!cancelledRef.current) setOtpError("Something went wrong. Try again.");
+      setOtpError("Something went wrong. Try again.");
     } finally {
-      if (!cancelledRef.current) setOtpLoading(false);
+      setOtpLoading(false);
     }
   }
 
@@ -291,7 +273,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
     try {
       await navigator.clipboard.writeText(paymentUri);
       setUriCopied(true);
-      setTimeout(() => { if (!cancelledRef.current) setUriCopied(false); }, 2000);
+      setTimeout(() => setUriCopied(false), 2000);
     } catch { /* clipboard API blocked — user can copy from the code block */ }
   }
 
@@ -335,16 +317,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Phase 0: Unlock (reserved names only) ── */}
-        {needsUnlock && (
-          <div
-            style={{
-              ...phaseTransform("unlock", phase),
-              transition: TRANSITION,
-              position: phase === "unlock" ? "relative" : "absolute",
-              inset: phase !== "unlock" ? 0 : undefined,
-              overflow: "auto",
-            }}
-          >
+        {phase === "unlock" && (
             <div className="p-8 flex flex-col gap-5">
               <div>
                 <h2 className="text-lg font-bold" style={{ color: "var(--fg-heading)" }}>
@@ -397,19 +370,10 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
                 </button>
               </div>
             </div>
-          </div>
         )}
 
         {/* ── Phase 1: Input ── */}
-        <div
-          style={{
-            ...phaseTransform("input", phase),
-            transition: TRANSITION,
-            position: phase === "input" ? "relative" : "absolute",
-            inset: phase !== "input" ? 0 : undefined,
-            overflow: "auto",
-          }}
-        >
+        {phase === "input" && (
           <div className="p-8 flex flex-col gap-5">
             <div>
               <h2 className="text-lg font-bold" style={{ color: "var(--fg-heading)" }}>
@@ -494,18 +458,10 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
               </button>
             </div>
           </div>
-        </div>
+        )}
 
         {/* ── Phase 2: OTP ── */}
-        <div
-          style={{
-            ...phaseTransform("otp", phase),
-            transition: TRANSITION,
-            position: phase === "otp" ? "relative" : "absolute",
-            inset: phase !== "otp" ? 0 : undefined,
-            overflow: "auto",
-          }}
-        >
+        {phase === "otp" && (
           <div className="p-8 flex flex-col items-center gap-5 text-center">
             <div>
               <h2 className="text-lg font-bold" style={{ color: "var(--fg-heading)" }}>
@@ -536,7 +492,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
                   try {
                     await navigator.clipboard.writeText(otpUri);
                     setOtpCopied(true);
-                    setTimeout(() => { if (!cancelledRef.current) setOtpCopied(false); }, 2000);
+                    setTimeout(() => setOtpCopied(false), 2000);
                   } catch { /* clipboard blocked */ }
                 }}
                 className="self-end px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-opacity hover:opacity-80"
@@ -599,18 +555,10 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
               </button>
             </div>
           </div>
-        </div>
+        )}
 
         {/* ── Phase 3: Payment ── */}
-        <div
-          style={{
-            ...phaseTransform("payment", phase),
-            transition: TRANSITION,
-            position: phase === "payment" ? "relative" : "absolute",
-            inset: phase !== "payment" ? 0 : undefined,
-            overflow: "auto",
-          }}
-        >
+        {phase === "payment" && (
           <div className="p-8 flex flex-col items-center gap-5 text-center">
             <span
               className="flex items-center justify-center w-14 h-14 rounded-full"
@@ -663,7 +611,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
               </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>,
     document.body,

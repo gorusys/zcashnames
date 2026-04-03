@@ -25,6 +25,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@react-email/preview-server": "^5.2.10",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22.13.10",
     "@types/react": "^19.1.0",
