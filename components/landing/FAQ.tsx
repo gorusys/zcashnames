@@ -37,6 +37,11 @@ const items: FAQItem[] = [
       "Payments made using Zcash shielded transactions do not publicly expose amounts and balances on the public ledger.",
   },
   {
+    question: "Does linking my name to an address hurt my privacy?",
+    answer:
+      "No. Zcash shielded transactions keep amounts and addresses off the public ledger, so even someone who knows your .zcash name can\u2019t see your balance or activity. It\u2019s like sharing your email — people can reach you, but they can\u2019t read your inbox.",
+  },
+  {
     question: "Can people pay me with other cryptocurrencies?",
     answer:
       "Yes. Cross-pay flows let senders use popular assets while settlement can still arrive in Zcash to the address associated with your ZcashName.",

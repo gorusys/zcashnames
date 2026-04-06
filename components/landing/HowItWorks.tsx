@@ -1,3 +1,90 @@
+type Benefit = {
+  title: string;
+  description: React.ReactNode;
+  soon?: boolean;
+};
+
+const benefitGradient =
+  "radial-gradient(circle at 70% 50%, var(--feature-heading-line-from) 0%, transparent 70%)";
+
+const benefits: Benefit[] = [
+  {
+    title: "Send using simple names",
+    description: "No long addresses or manual entry",
+  },
+  {
+    title: "Own your .zcash name",
+    description: "Hold or trade as an asset",
+  },
+  {
+    title: "Update once, everywhere",
+    description: "Change your address without notifying others",
+  },
+  {
+    title: "Full control",
+    description: "Only the owner can update or transfer",
+  },
+  {
+    title: "On-chain and tamper-resistant",
+    description: "Records cannot be altered or removed",
+  },
+  {
+    title: "Private by default",
+    description: "Your name reveals nothing about your activity",
+  },
+  {
+    title: "Decentralized identity",
+    description: "Use your name across apps",
+    soon: true,
+  },
+  {
+    title: "Verify before sending",
+    description: "Profiles linked via Zcash.me",
+    soon: true,
+  },
+];
+
+function BenefitsBento() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {benefits.map((b, i) => (
+        <div
+          key={i}
+          className="relative rounded-xl p-6 overflow-hidden"
+          style={{ border: "1px solid var(--faq-border)" }}
+        >
+          <div
+            className="absolute inset-0 pointer-events-none opacity-20"
+            style={{ backgroundImage: benefitGradient }}
+            aria-hidden="true"
+          />
+          <div className="relative z-[1]">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <h3
+                className="type-section-subtitle font-semibold"
+                style={{ color: "var(--fg-heading)" }}
+              >
+                {b.title}
+              </h3>
+              {b.soon && (
+                <span
+                  className="rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide [[data-theme=monochrome]_&]:!text-[var(--fg-heading)]"
+                  style={{ background: "rgba(234,179,8,0.15)", color: "#eab308" }}
+                >
+                  Soon
+                </span>
+              )}
+            </div>
+            <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
+              {b.description}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function HowItWorks() {
   return (
     <section className="w-full max-w-4xl mx-auto px-6 py-24">
@@ -27,8 +114,8 @@ export default function HowItWorks() {
           style={{ border: "1px solid var(--faq-border)" }}
         >
           <span
-            className="block text-2xl font-bold mb-1"
-            style={{ color: "var(--fg-heading)" }}
+            className="block text-4xl mb-1"
+            style={{ color: "var(--fg-heading)", fontFamily: "var(--font-cursive)" }}
           >1</span>
           <h3
             className="type-section-subtitle font-semibold mb-2"
@@ -59,8 +146,8 @@ export default function HowItWorks() {
           style={{ border: "1px solid var(--faq-border)" }}
         >
           <span
-            className="block text-2xl font-bold mb-1"
-            style={{ color: "var(--fg-heading)" }}
+            className="block text-4xl mb-1"
+            style={{ color: "var(--fg-heading)", fontFamily: "var(--font-cursive)" }}
           >2</span>
           <h3
             className="type-section-subtitle font-semibold mb-2"
@@ -91,8 +178,8 @@ export default function HowItWorks() {
           style={{ border: "1px solid var(--faq-border)" }}
         >
           <span
-            className="block text-2xl font-bold mb-1"
-            style={{ color: "var(--fg-heading)" }}
+            className="block text-4xl mb-1"
+            style={{ color: "var(--fg-heading)", fontFamily: "var(--font-cursive)" }}
           >3</span>
           <h3
             className="type-section-subtitle font-semibold mb-2"
@@ -124,35 +211,8 @@ export default function HowItWorks() {
         />
       </div>
 
-      {/* Explainer box */}
-      <div
-        className="rounded-xl p-8"
-        style={{ border: "1px solid var(--faq-border)" }}
-      >
-        <div className="space-y-3" style={{ color: "var(--fg-muted)" }}>
-          <p className="type-section-subtitle">
-            <strong style={{ color: "var(--fg-heading)" }}>Send and Receive Without Long Addresses</strong>{" "}
-            &mdash; Use a name people can read and remember instead of copying and pasting wallet strings.
-          </p>
-
-          <p className="type-section-subtitle">
-            <strong style={{ color: "var(--fg-heading)" }}>Use One Name Across Zcash Apps</strong>{" "}
-            &mdash; Sign in with your .zcash name across supported apps and prove ownership of your address without extra accounts.
-          </p>
-
-          <p className="type-section-subtitle">
-            <strong style={{ color: "var(--fg-heading)" }}>Verify Who You&rsquo;re Dealing With</strong>{" "}
-            &mdash; Connect your .zcash name to a{" "}
-            <a href="https://zcash.me" target="_blank" rel="noopener noreferrer" className="underline">Zcash.me</a>{" "}
-            profile so others can confirm identity, linked accounts, and reputation before they transact.
-          </p>
-
-          <p className="type-section-subtitle">
-            <strong style={{ color: "var(--fg-heading)" }}>Buy, Sell, and Hold Valuable Names</strong>{" "}
-            &mdash; Claim a name to use it, keep it as a digital asset, or list it for sale as demand grows.
-          </p>
-        </div>
-      </div>
+      {/* Benefits bento grid */}
+      <BenefitsBento />
     </section>
   );
 }
