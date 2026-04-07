@@ -11,7 +11,14 @@ export type {
 export { ZNSError, ErrorType } from "./errors.js";
 
 // Protocol constants
-export { DEFAULT_URL, UFVK, CLAIM_PRICES, DEFAULT_CLAIM_PRICE } from "./constants.js";
+export {
+  DEFAULT_URL,
+  TESTNET_UIVK,
+  MAINNET_UIVK,
+  KNOWN_UIVKS,
+  CLAIM_PRICES,
+  DEFAULT_CLAIM_PRICE,
+} from "./constants.js";
 
 // Validation
 export { isValidName } from "./validation.js";

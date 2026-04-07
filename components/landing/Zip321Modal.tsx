@@ -274,7 +274,7 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
       await navigator.clipboard.writeText(paymentUri);
       setUriCopied(true);
       setTimeout(() => setUriCopied(false), 2000);
-    } catch { /* clipboard API blocked — user can copy from the code block */ }
+    } catch { /* clipboard API blocked - user can copy from the code block */ }
   }
 
   // ---- Shared styles ----

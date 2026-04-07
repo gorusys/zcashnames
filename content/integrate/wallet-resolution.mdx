@@ -1,0 +1,101 @@
+# Wallet: Resolve a Name
+
+The minimum viable ZcashNames integration: detect a name in the recipient field, call resolve, substitute the returned address, and proceed with the existing send flow.
+
+To support ZcashNames in a wallet, you do not need to change how transactions are built or signed. You add one lookup in front of your existing recipient parser.
+
+## What counts as a name
+
+A name is 1 to 62 lowercase ASCII letters and digits. Anything else is not a name.
+
+```
+^[a-z0-9]{1,62}$
+```
+
+In a recipient field, treat input as a name when it matches that pattern, optionally followed by `.zcash` or `.zec`. Both suffixes are display-only and must be stripped before you call the resolver. They never appear on chain.
+
+```typescript
+function extractName(input: string): string | null {
+  const trimmed = input.trim().toLowerCase().replace(/\.(zcash|zec)$/, "");
+  return /^[a-z0-9]{1,62}$/.test(trimmed) ? trimmed : null;
+}
+```
+
+If the input does not match, fall through to your existing Zcash address parser. Anything starting with `u`, `zs`, or `t` is a regular address and should skip the resolver entirely. Lowercase before matching: users will paste `Alice.zcash` from the address bar of a directory site, and the canonical form is lowercase.
+
+The indexer enforces the regex byte-for-byte and never normalizes. If you do not strip the suffix, the lookup will fail. The full rules live at [Name Validation](/docs/protocol/name-validation).
+
+## Resolve a name
+
+Use the [TypeScript SDK](/docs/sdk/typescript) for the call. It handles JSON-RPC framing, UIVK pinning, and error typing.
+
+```typescript
+import { createClient, isValidName, ZNSError, ErrorType } from "zcashname-sdk";
+
+const client = await createClient("https://names.zcash.me");
+
+async function resolveRecipient(input: string): Promise<string | null> {
+  const name = input.trim().toLowerCase().replace(/\.(zcash|zec)$/, "");
+  if (!isValidName(name)) return null;
+
+  const reg = await client.resolve(name);
+  // reg is { name, address, txid, height, nonce, signature, last_action, listing } | null
+  return reg?.address ?? null;
+}
+```
+
+`createClient` calls `status` once on startup and pins the indexer's UIVK against `KNOWN_UIVKS`. After that, `resolve` is a single HTTP round trip. Reuse the client across calls; do not construct one per recipient lookup.
+
+The SDK auto-detects whether the query string is a name or a Zcash address. For wallets you only need the name path, but the same call also serves reverse lookups if you ever want to label outgoing transactions with the recipient's name.
+
+For Rust, Swift, Kotlin, Dart, Go, Python, and React Native, see [SDKs](/docs/sdk). The shape of the call is identical across ports.
+
+## Substitute and send
+
+Once you have the returned `address`, hand it to your existing send pipeline as if the user had pasted it directly. ZcashNames does not require any change to how you build the Orchard output, attach memos, or sign the transaction. The name was resolved client-side; the transaction your wallet broadcasts is a normal Zcash payment to a unified address.
+
+Show the original name in the confirmation screen alongside the underlying address so the user can sanity-check that `alice.zcash` resolved to the address they expect. A truncated form like `u1gph…hkg36` is enough; the goal is to make swap attacks visible, not to make the user verify 200 characters.
+
+## Handling errors
+
+There are three cases to handle around the `resolve` call.
+
+`isValidName` returns `false`. The input is not a syntactically valid name. Don't call the resolver - fall back to your address parser or show a validation error.
+
+`resolve` returns `null`. The name passed validation but is not currently registered. Show "name not found" in the recipient field. A released name returns `null` the same way a never-claimed name does.
+
+`resolve` throws `ZNSError`. The indexer is unreachable or returned an error. Surface a transient failure to the user and let them retry.
+
+```typescript
+try {
+  const reg = await client.resolve(name);
+  if (reg === null) {
+    showRecipientError("Name not found");
+    return;
+  }
+  fillRecipient(reg.address);
+} catch (e) {
+  if (e instanceof ZNSError && e.type === ErrorType.HttpError) {
+    showRecipientError("Cannot reach the name server. Try again.");
+  } else {
+    throw e;
+  }
+}
+```
+
+The other `ErrorType` values (`UivkMismatch`, `InvalidParams`, `InternalError`) signal a misconfigured client or a bug. Log them, but they should not fire on the happy path. `UivkMismatch` in particular means the indexer the client connected to is not the one it pinned against; treat it as fatal and refuse to substitute the address.
+
+## Optional: verify the signature
+
+Most wallets do not need this. The resolver returns a `signature` field over the registration's pre-image, signed by the protocol's admin Ed25519 key. A wallet that wants trust-minimized resolution can verify it locally against the pinned `admin_pubkey` from `status` before substituting the address.
+
+The full procedure and threat model live at [Trust Model](/docs/protocol/trust-model). The SDK does not yet ship a `verifyRegistration` helper, so you bring your own Ed25519 library (`@noble/ed25519` works in browsers and Node).
+
+Wallets that want to also support claiming names can deep-link the user to zcashnames.com. Claiming is out of scope for the resolution path.
+
+## Read next
+
+- [SDKs](/docs/sdk) - the same pattern in Rust, Swift, Kotlin, Dart, Go, Python, and React Native.
+- [TypeScript SDK Reference](/docs/sdk/typescript) - every exported function.
+- [Name Validation](/docs/protocol/name-validation) - the canonical regex and edge cases.
+- [Testing your integration](/docs/integrate/testing) - test vectors and a public testnet endpoint.

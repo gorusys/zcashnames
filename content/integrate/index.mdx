@@ -1,0 +1,27 @@
+# Integrate ZcashNames
+
+Adding ZcashNames support to a wallet, block explorer, or payments app. Most integrations are small.
+
+## What's here
+
+[Wallet: Resolve a Name](/docs/integrate/wallet-resolution) is the smallest viable wallet integration. Detect a name in the recipient field, call `resolve`, substitute the returned address into the existing send flow. One JSON-RPC call.
+
+[Explorer Integration](/docs/integrate/explorer-integration) covers reading from the indexer's `events` RPC, or parsing memos directly from the chain, to surface ZcashNames activity alongside normal Zcash transactions.
+
+[Testing](/docs/integrate/testing) lists the testnet endpoints, fixtures, and how to verify an integration before shipping.
+
+## A note on claims
+
+The full claim flow, where a user registers a new name, is currently a web flow at [zcashnames.com](https://www.zcashnames.com), not an in-wallet flow. Wallets that want to support claiming should deep-link or webview to the web app for now. A public signing API for in-wallet claims is a future direction, not a shipped feature.
+
+## Available SDKs
+
+ZNS has first-party SDKs for TypeScript/JavaScript, React Native, Rust, Python, Kotlin/JVM, Swift, Go, and Dart. They all wrap the same JSON-RPC API. Pick the one that matches your stack, or hit the indexer directly with any HTTP client. See [SDKs](/docs/sdk).
+
+The canonical machine-readable spec is at [`/openrpc.json`](/openrpc.json). Point any OpenRPC code generator at it to scaffold a typed client.
+
+## Read next
+
+- [Wallet: Resolve a Name](/docs/integrate/wallet-resolution)
+- [Testing](/docs/integrate/testing)
+- [SDKs](/docs/sdk)

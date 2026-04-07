@@ -103,7 +103,7 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
         }
 
         const costZats = await fetchClaimCost(name, network);
-        if (costZats == null) return { ok: false, error: "Pricing unavailable — indexer may be down." };
+        if (costZats == null) return { ok: false, error: "Pricing unavailable - indexer may be down." };
         const memo = await buildSignedClaimMemo(name, address, network);
         return {
           ok: true,

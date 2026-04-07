@@ -1,5 +1,5 @@
 /**
- * ZIP-321 payment URI helpers — browser-safe, no Node.js dependencies.
+ * ZIP-321 payment URI helpers - browser-safe, no Node.js dependencies.
  */
 
 export function buildZcashUri(

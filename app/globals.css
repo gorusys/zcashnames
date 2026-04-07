@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════
-   Theme variables — dark default, light override
+   Theme variables - dark default, light override
    ═══════════════════════════════════════════════ */
 
 :root {
@@ -839,7 +839,7 @@ body::after {
 }
 
 /* ═══════════════════════════
-   Hero — state-based animations
+   Hero - state-based animations
    ═══════════════════════════ */
 
 .hero-activity-redact {
@@ -874,7 +874,7 @@ body::after {
   animation: hero-redact-sweep 2300ms ease forwards;
 }
 
-/* Identity checkmark — overlay on "identity." text */
+/* Identity checkmark - overlay on "identity." text */
 .hero-identity-check-wrap {
   position: relative;
   display: inline;
@@ -932,7 +932,7 @@ body::after {
 
 
 /* ═══════════════════════════
-   SearchForm — mask-composite border
+   SearchForm - mask-composite border
    (cannot be expressed in Tailwind)
    ═══════════════════════════ */
 
@@ -2262,7 +2262,7 @@ body::after {
 
 
 /* ═══════════════════════════════════════════════
-   Docs Hub — landing page & shared doc styles
+   Docs Hub - landing page & shared doc styles
    ═══════════════════════════════════════════════ */
 
 /* ── Hub container ────────────────────────────── */

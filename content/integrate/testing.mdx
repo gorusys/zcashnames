@@ -1,0 +1,37 @@
+# Testing
+
+## Endpoints
+
+| Network | URL |
+|---------|-----|
+| Testnet | `https://light.zcash.me/zns-testnet` |
+| Mainnet (beta) | `https://light.zcash.me/zns-mainnet-test` |
+| Local | `http://127.0.0.1:3000` |
+
+## Smoke test
+
+```sh
+curl -sX POST https://light.zcash.me/zns-testnet \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"status","params":{}}'
+```
+
+## Wallet checklist
+
+- `resolve("alice")` returns a result with `address`, `txid`, `height`, `nonce`, `last_action`
+- `resolve("definitelynotregistered")` returns `null`, not an error
+- `resolve(unifiedAddress)` returns an array (possibly empty)
+- `isValidName("Alice")`, `isValidName("my-name")`, `isValidName("a".repeat(70))` all return `false`
+- Closed port throws `ZNSError` with `ErrorType.HttpError`
+- Wrong UIVK throws `ZNSError` with `ErrorType.UivkMismatch` before any resolve
+
+## Explorer checklist
+
+- `events` with `since_height` streams correctly (filter is strict `>`, not `>=`)
+- All seven action verbs render: `CLAIM UPDATE LIST DELIST BUY RELEASE SETPRICE`
+- `SETPRICE` events have an empty `name` field
+- `resolve(address)` returns an array; empty array is the normal no-names case
+
+## Local indexer
+
+See [Running an Indexer](/docs/indexer/running). Binds to `http://127.0.0.1:3000` by default.

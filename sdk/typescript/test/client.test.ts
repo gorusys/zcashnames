@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createClient } from "../src/client.js";
-import { UFVK } from "../src/constants.js";
+import { TESTNET_UIVK } from "../src/constants.js";
 import { ErrorType } from "../src/errors.js";
 
 const mockStatus = {
   synced_height: 3902500,
   admin_pubkey: "abc123",
-  ufvk: UFVK,
+  uivk: TESTNET_UIVK,
   registered: 42,
   listed: 3,
 };
@@ -23,17 +23,17 @@ beforeEach(() => {
 });
 
 describe("createClient", () => {
-  it("verifies UFVK on connect", async () => {
+  it("verifies UIVK on connect", async () => {
     globalThis.fetch = mockFetch(mockStatus);
     const client = await createClient("http://localhost:3000");
     expect(client.verified).toBe(true);
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("throws on UFVK mismatch", async () => {
-    globalThis.fetch = mockFetch({ ...mockStatus, ufvk: "wrong" });
+  it("throws on UIVK mismatch", async () => {
+    globalThis.fetch = mockFetch({ ...mockStatus, uivk: "uivktest1notreal" });
     await expect(createClient("http://localhost:3000")).rejects.toMatchObject({
-      type: ErrorType.UfvkMismatch,
+      type: ErrorType.UivkMismatch,
     });
   });
 

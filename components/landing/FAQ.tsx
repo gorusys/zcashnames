@@ -29,7 +29,7 @@ const items: FAQItem[] = [
   {
     question: "Do I really own my name?",
     answer:
-      "Yes. Your name is registered on an on-chain registry linked to your address. There are no renewal fees — stay active once every 180 days to maintain it. You can sell, transfer, or buy additional names at any time.",
+      "Yes. Your name is registered on an on-chain registry linked to your address. There are no renewal fees - stay active once every 180 days to maintain it. You can sell, transfer, or buy additional names at any time.",
   },
   {
     question: "How do payments stay private?",
@@ -39,7 +39,7 @@ const items: FAQItem[] = [
   {
     question: "Does linking my name to an address hurt my privacy?",
     answer:
-      "No. Zcash shielded transactions keep amounts and addresses off the public ledger, so even someone who knows your .zcash name can\u2019t see your balance or activity. It\u2019s like sharing your email — people can reach you, but they can\u2019t read your inbox.",
+      "No. Zcash shielded transactions keep amounts and addresses off the public ledger, so even someone who knows your .zcash name can\u2019t see your balance or activity. It\u2019s like sharing your email - people can reach you, but they can\u2019t read your inbox.",
   },
   {
     question: "Can people pay me with other cryptocurrencies?",
@@ -49,7 +49,7 @@ const items: FAQItem[] = [
   {
     question: "How does Log in with Zcash work?",
     answer:
-      "Your .zcash name resolves to an address. That address receives a one-time passcode. Replying with the one-time passcode proves you own that address. No passwords or third-party accounts are required — just your name.",
+      "Your .zcash name resolves to an address. That address receives a one-time passcode. Replying with the one-time passcode proves you own that address. No passwords or third-party accounts are required - just your name.",
   },
   {
     question: "What is testnet mode?",
@@ -59,7 +59,7 @@ const items: FAQItem[] = [
   {
     question: "How do waitlist referrals work?",
     answer:
-      "When you join the waitlist you receive a unique referral link. Sharing it moves you up the queue — the more people you refer, the earlier you get access when ZcashNames launches. Plus, if they purchase a name after our launch, you earn 0.05 ZEC per name.",
+      "When you join the waitlist you receive a unique referral link. Sharing it moves you up the queue - the more people you refer, the earlier you get access when ZcashNames launches. Plus, if they purchase a name after our launch, you earn 0.05 ZEC per name.",
   },
   {
     question: "How do I become an ambassador?",

@@ -26,7 +26,7 @@ export interface ListForSaleResult {
 export interface StatusResult {
   synced_height: number;
   admin_pubkey: string;
-  ufvk: string;
+  uivk: string;
   registered: number;
   listed: number;
 }

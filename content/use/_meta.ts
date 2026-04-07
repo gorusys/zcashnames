@@ -1,11 +1,12 @@
 import type { MetaRecord } from 'nextra'
 
 const meta: MetaRecord = {
-  'search-and-claim': 'Claiming a Name',
+  claiming: 'Claiming a Name',
   'buying-and-selling': 'Buying & Selling',
-  'managing-names': 'Managing Names',
-  pricing: 'Pricing',
+  managing: 'Managing Names',
+  'reserved-names': 'Reserved Names',
   'otp-verification': 'OTP Verification',
+  wallets: 'Wallet Compatibility',
 }
 
 export default meta

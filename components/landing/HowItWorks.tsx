@@ -88,7 +88,7 @@ function BenefitsBento() {
 export default function HowItWorks() {
   return (
     <section className="w-full max-w-4xl mx-auto px-6 py-24">
-      {/* Section heading — same style as FAQ */}
+      {/* Section heading - same style as FAQ */}
       <div className="flex items-center justify-center gap-3.5 mb-14">
         <span
           className="block shrink-0 w-[clamp(24px,9vw,96px)] h-px"
@@ -106,7 +106,7 @@ export default function HowItWorks() {
         />
       </div>
 
-      {/* Step boxes with arrows — side-by-side on desktop, stacked on mobile */}
+      {/* Step boxes with arrows - side-by-side on desktop, stacked on mobile */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-4 md:gap-0 mb-14">
         {/* Step 1 */}
         <div
@@ -127,13 +127,13 @@ export default function HowItWorks() {
           </p>
         </div>
 
-        {/* Arrow 1 — horizontal on desktop */}
+        {/* Arrow 1 - horizontal on desktop */}
         <div className="hidden md:flex items-center justify-center px-3" style={{ color: "var(--fg-muted)" }}>
           <svg width="32" height="24" viewBox="0 0 32 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2 12h24m0 0l-7-7m7 7l-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        {/* Arrow 1 — vertical on mobile */}
+        {/* Arrow 1 - vertical on mobile */}
         <div className="flex md:hidden items-center justify-center py-1" style={{ color: "var(--fg-muted)" }}>
           <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2v24m0 0l-7-7m7 7l7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -159,13 +159,13 @@ export default function HowItWorks() {
           </p>
         </div>
 
-        {/* Arrow 2 — horizontal on desktop */}
+        {/* Arrow 2 - horizontal on desktop */}
         <div className="hidden md:flex items-center justify-center px-3" style={{ color: "var(--fg-muted)" }}>
           <svg width="32" height="24" viewBox="0 0 32 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M2 12h24m0 0l-7-7m7 7l-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        {/* Arrow 2 — vertical on mobile */}
+        {/* Arrow 2 - vertical on mobile */}
         <div className="flex md:hidden items-center justify-center py-1" style={{ color: "var(--fg-muted)" }}>
           <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2v24m0 0l-7-7m7 7l7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -193,7 +193,7 @@ export default function HowItWorks() {
         </div>
       </div>
 
-      {/* Benefits heading — same style as FAQ / How It Works */}
+      {/* Benefits heading - same style as FAQ / How It Works */}
       <div className="flex items-center justify-center gap-3.5 mb-14 mt-24">
         <span
           className="block shrink-0 w-[clamp(24px,9vw,96px)] h-px"

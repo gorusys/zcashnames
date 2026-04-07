@@ -1,0 +1,70 @@
+# Buying & Selling Names
+
+ZNS has a built-in marketplace. Anyone who owns a name can list it for sale. Anyone with enough ZEC can buy it. The whole flow is on-chain and atomic - no escrow, no approvals, no off-chain settlement.
+
+## Buying a listed name
+
+1. Search for a name that shows as **For Sale**.
+2. Enter your Zcash unified address.
+3. The app generates a ZIP-321 payment URI for the listing price, with a memo of the form `ZNS:BUY:<name>:<your_ua>:<sig>`.
+4. Send the transaction from your wallet.
+
+Once the block is mined, the indexer transfers the name to your address and removes the listing. The previous owner loses the name the moment the block is processed, there's no withdrawal window. For the protocol-level details, see [Trust Model](/docs/protocol/trust-model).
+
+## Listing a name for sale
+
+1. Search for your registered name and click **List for Sale**.
+2. Complete [OTP verification](/docs/use/otp-verification) to prove you control the address the name is registered to.
+3. Enter your price in ZEC (or zats).
+4. Send the transaction.
+
+The memo is `ZNS:LIST:<name>:<price_zats>:<nonce>:<sig>`. It's a 0.001 ZEC self-send - the protocol only needs the memo, not a payment to anyone.
+
+**Changing the price.** List again with a new price. The indexer uses `INSERT OR REPLACE` on the listings table, so the new row overwrites the old one. The nonce must advance each time.
+
+## Delisting
+
+Remove your name from the marketplace while keeping the registration:
+
+1. Search for your listed name and click **Delist**.
+2. Complete OTP verification.
+3. Send the transaction.
+
+Memo: `ZNS:DELIST:<name>:<nonce>:<sig>`. The listing row is deleted; the registration row's `last_action` is updated to `DELIST`.
+
+## Price limits
+
+| | Zats | ZEC |
+|-|------|-----|
+| Protocol minimum | 1 | 0.00000001 |
+| Web UI minimum | 100,000 | 0.001 |
+| Protocol maximum | 2,100,000,000,000,000 | 21,000,000 (Zcash supply cap) |
+
+The web UI is deliberately more conservative than the protocol.
+
+## Finding listings
+
+The easiest way to browse the marketplace is the [Explorer](/explorer) - switch to the **For Sale** tab to see every active listing across networks, with the seller and price in one view.
+
+Programmatically, call `list_for_sale` to get every active listing, ordered newest first:
+
+```bash
+curl -sX POST https://light.zcash.me/zns-testnet \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"list_for_sale","params":{}}' | jq
+```
+
+The response includes each listing's signature so clients can verify independently. See [Resolution](/docs/learn/resolution) for the signature semantics.
+
+## Gotchas
+
+- **Buying does not refund overpayment.** If the listing is 1 ZEC and you send 1.5, you pay 1.5. The app should always use the exact listing price.
+- **BUY resets the nonce to 0.** Any signed memos you had queued from the previous owner are now worthless - the nonce is stale and the signature would not verify the new history anyway.
+- **LIST/DELIST/BUY all require a transaction.** The marketplace is not a preference, it's a chain of memos.
+- **There is no escrow.** Send to the registry address at exactly the listing price. No holding period, no disputes.
+
+## Next
+
+- [Managing Names](/docs/use/managing) - update, release.
+- [OTP Verification](/docs/use/otp-verification) - how address ownership is proven.
+- [Name Lifecycle](/docs/learn/name-lifecycle) - the state transitions in detail.

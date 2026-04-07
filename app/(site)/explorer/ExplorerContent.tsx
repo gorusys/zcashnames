@@ -119,7 +119,7 @@ export default function ExplorerContent({
     return sortListings(filtered, sortBy);
   }, [listings, searchQuery, sortBy]);
 
-  // For Sale tab — table
+  // For Sale tab - table
   if (tab === "forsale") {
     return (
       <div
@@ -187,7 +187,7 @@ export default function ExplorerContent({
     );
   }
 
-  // Events-based tabs — table
+  // Events-based tabs - table
   return (
     <div
       className="overflow-hidden rounded-2xl border"
@@ -244,7 +244,7 @@ export default function ExplorerContent({
                           {ev.ua}
                         </span>
                       ) : (
-                        <span className="text-fg-muted">&mdash;</span>
+                        <span className="text-fg-muted">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-fg-muted text-xs sm:px-6">

@@ -1,5 +1,5 @@
 /**
- * ZNS name helpers — normalization, validation, pricing, and formatting.
+ * ZNS name helpers - normalization, validation, pricing, and formatting.
  * Name rules aligned with ZNS indexer (memo.rs validate_name):
  * - 1–62 characters, lowercase alphanumeric only (a-z, 0-9)
  */

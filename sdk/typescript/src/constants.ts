@@ -1,7 +1,18 @@
 export const DEFAULT_URL = "https://names.zcash.me";
 
-export const UFVK =
-  "uviewtest1h075nwxk0s66hyw0gmy5l2gmr37eahe9ewzgu2lff90rc85mazdhc66udklmd2p7cqm3mg2up8487pusvh78dh89y7mzlfgdl57tncqxrwshhc2kf26js0ymdwd476r0v7qn6es0etgjeg3g0y3pngvvf8zdawg6nlwca7jqy2fv82rc5skauw05ptfuf5twj67u0gzzvhakvkxpvx8rvf2rlh5yh560fdr6p28368kjxez5gu9azam5cm08ygre0uqwhvrkz7sr7ld0nyv05a0xrqeffdvhujafq3ke860skmxzshtjlrlew72vycu54pkgjtyp2phr6fmmkqlxvsan54jh7mc59r7kazgwwrcfnmqjm5pt40kjeafp6lwtx2lp4gm5pzg9c9ugphrsclfnz50spnsrersk34ht5mrevw9yvspkfjg9mjhusc588d855hdch0z82pr5fhkvaz3p4cmjlxujxqw2w20tpgyt3rzkwuuwl4r7";
+/**
+ * Known canonical Unified Incoming Viewing Keys (UIVKs) for the official ZNS
+ * indexer instances. The SDK pins these so a client connecting to a hostile
+ * RPC server can detect that it's being pointed at a different registry wallet
+ * than the one it expects.
+ */
+export const TESTNET_UIVK =
+  "uivktest1hzw7wyadutvzfgpna80yftsk5l7jeyu2p5me5quvp28tytxueta00cx4068wnlzcv7tx9n3t3gfhsy83pe4y6jrhxtzaq0hj6xtg5zrk2dn7zen3vns2a5pgs4fxdjlletmqrhfa42";
+
+export const MAINNET_UIVK =
+  "uivk1gl26qy0xjja7lqhyg3pf0x4j4j66kqwewrjkdcg28eqq4wgtzjmujpee7x9cs2ec9xhnlgrm8ptlw8z80j2aryw8nqtssser2ys778a0s00uvgkdjnfr58sndhfvc3f4zqjs6ywva6";
+
+export const KNOWN_UIVKS: readonly string[] = [TESTNET_UIVK, MAINNET_UIVK];
 
 export const CLAIM_PRICES: Record<number, number> = {
   1: 600_000_000,

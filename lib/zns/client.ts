@@ -13,7 +13,7 @@ const ZNS_RPC_URLS: Record<Network, string> = {
 const RPC_TIMEOUT_MS = 6000;
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Types (mirror the indexer's JSON-RPC response shapes — DO NOT CHANGE)
+   Types (mirror the indexer's JSON-RPC response shapes - DO NOT CHANGE)
    ══════════════════════════════════════════════════════════════════════ */
 
 export type ZnsListing = {
@@ -161,7 +161,7 @@ export function registrationStatus(
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Memo builders — produce 512-byte Orchard memos for on-chain name operations
+   Memo builders - produce 512-byte Orchard memos for on-chain name operations
    ══════════════════════════════════════════════════════════════════════ */
 
 export function buildClaimMemo(name: string, ua: string, signature: string): string {
@@ -207,7 +207,7 @@ export function buildUpdateMemo(
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Signing payloads — canonical strings that get Ed25519-signed (server-side)
+   Signing payloads - canonical strings that get Ed25519-signed (server-side)
    ══════════════════════════════════════════════════════════════════════ */
 
 export function claimPayload(name: string, ua: string): string {
@@ -235,7 +235,7 @@ export function updatePayload(name: string, newUa: string, nonce: number): strin
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   ZIP-321 payment URI helpers — re-exported from lib/payment/zip321.ts
+   ZIP-321 payment URI helpers - re-exported from lib/payment/zip321.ts
    ══════════════════════════════════════════════════════════════════════ */
 
 export {

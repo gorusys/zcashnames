@@ -1,5 +1,5 @@
 /**
- * ZVS memo helpers — session generation, memo building, and parsing.
+ * ZVS memo helpers - session generation, memo building, and parsing.
  */
 
 /** Generate a cryptographically secure 16-digit session ID. */

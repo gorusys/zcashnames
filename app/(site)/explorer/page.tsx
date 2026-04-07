@@ -4,7 +4,7 @@ import type { ResolveName } from "@/lib/types";
 import ExplorerShell from "./ExplorerShell";
 
 export const metadata = {
-  title: "Explorer — ZcashNames",
+  title: "Explorer - ZcashNames",
   description: "Browse registered .zcash names, event history, and marketplace listings.",
 };
 

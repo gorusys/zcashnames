@@ -1,0 +1,286 @@
+# TypeScript SDK
+
+The ZNS TypeScript SDK provides type-safe functions for querying the registry, building memos, and validating names. It targets browsers, Node, and edge runtimes.
+
+Source: [`sdk/typescript`](https://github.com/zcashme/zcashnames/tree/main/sdk/typescript). It's also available inside the indexer repo at [`zcashme/ZNS/sdk/typescript`](https://github.com/zcashme/ZNS/tree/master/sdk/typescript) alongside its sibling ports for Rust, Dart, Kotlin, Swift, Python, Go, and React Native.
+
+## Installation
+
+The SDK is distributed from the source repo. In a local project:
+
+```sh
+npm install zcashname-sdk
+```
+
+Or wire it up as a workspace package pointing at `sdk/typescript`.
+
+## Quick start
+
+```typescript
+import { resolve, listings, status, isAvailable } from "zcashname-sdk";
+
+// Forward resolution
+const reg = await resolve("alice");
+
+// By-address resolution
+const byAddr = await resolve("utest1qqq…");
+
+// Marketplace
+const forSale = await listings();
+
+// Sync status
+const s = await status();
+
+// Availability check
+const free = await isAvailable("alice");
+```
+
+The convenience functions use a lazily-created default client pointed at `https://names.zcash.me`. See [Configuration](#configuration) to override.
+
+## Query functions
+
+### `resolve(query)`
+
+Look up a name or address.
+
+```typescript
+import { resolve } from "zcashname-sdk";
+
+const byName = await resolve("alice");
+// { name, address, txid, height, nonce, signature, last_action, listing }
+
+const byAddr = await resolve("utest1f32kn6c4…");
+// Same shape - the SDK auto-detects whether the query is an address.
+```
+
+Returns `ResolveResult | null`. Address queries are flattened to a single result; the underlying RPC can return an array, see [Resolution](/docs/learn/resolution).
+
+### `listings()`
+
+All active marketplace listings.
+
+```typescript
+const items = await listings();
+// Listing[]: { name, price, nonce, txid, height, signature }
+```
+
+### `status()`
+
+Indexer sync status.
+
+```typescript
+const s = await status();
+// { synced_height, admin_pubkey, uivk, registered, listed }
+```
+
+The field is `uivk` (Unified Incoming Viewing Key). A UIVK is enough to trial-decrypt incoming notes; a full viewing key would expose outgoing material the indexer doesn't need.
+
+### `isAvailable(name)`
+
+Returns `true` if the name is unregistered. Implemented as `resolve(name) === null`.
+
+```typescript
+const free = await isAvailable("alice"); // boolean
+```
+
+### `getNonce(name)`
+
+```typescript
+const nonce = await getNonce("alice"); // number | null
+```
+
+Returns the current `Registration.nonce`, or `null` if unregistered.
+
+## Memo builders
+
+Each protocol action has a pair: a **payload** function that returns the canonical pre-image string, and a **memo** function that wraps the signed result with the `ZNS:` framing.
+
+### CLAIM
+
+```typescript
+import { claimPayload, buildClaimMemo } from "zcashname-sdk";
+
+const payload = claimPayload("alice", "utest1…");
+// "CLAIM:alice:utest1…"
+
+// sign `payload` with Ed25519 (server-side), receive base64 sig
+const memo = buildClaimMemo("alice", "utest1…", sig);
+// "ZNS:CLAIM:alice:utest1…:<sig>"
+```
+
+### BUY
+
+```typescript
+buyPayload("alice", "utest1buyer…");
+buildBuyMemo("alice", "utest1buyer…", sig);
+```
+
+### LIST
+
+```typescript
+listPayload("alice", 100_000_000, 1);
+buildListMemo("alice", 100_000_000, 1, sig);
+```
+
+### DELIST
+
+```typescript
+delistPayload("alice", 2);
+buildDelistMemo("alice", 2, sig);
+```
+
+### UPDATE
+
+```typescript
+updatePayload("alice", "utest1new…", 3);
+buildUpdateMemo("alice", "utest1new…", 3, sig);
+```
+
+### RELEASE
+
+```typescript
+releasePayload("alice", 4);
+buildReleaseMemo("alice", 4, sig);
+```
+
+All `build*Memo` helpers validate the name via `isValidName` and throw on failure. Addresses are passed through verbatim.
+
+## Validation
+
+### `isValidName(name)`
+
+```typescript
+isValidName("alice");       // true
+isValidName("bob42");       // true
+isValidName("my-name");     // false (hyphens not allowed)
+isValidName("Alice");       // false (uppercase)
+```
+
+The pattern is `/^[a-z0-9]{1,62}$/`. Matches the indexer's `validate_name`.
+
+## Pricing
+
+### `claimCost(nameLength)`
+
+Returns the claim cost in zatoshis from the hardcoded default tiers. For anything user-facing, prefer the live tiers from `status().pricing`.
+
+```typescript
+claimCost(1);  // 600_000_000
+claimCost(3);  // 300_000_000
+claimCost(7);  // 25_000_000
+```
+
+## ZIP-321
+
+```typescript
+import { buildZcashUri, parseZip321Uri, toBase64Url, decodeBase64Url } from "zcashname-sdk";
+
+const uri = buildZcashUri("utest1registry…", "0.25", "ZNS:CLAIM:alice:utest1…:sig");
+// "zcash:utest1registry…?amount=0.25&memo=Wk5TOkNMQUlNOmFsaWNlOnV0ZXN0MS4uLg"
+
+const parts = parseZip321Uri(uri);
+// { address, amount, memoRaw, memoDecoded }
+```
+
+
+## Client creation and UIVK verification
+
+The default convenience functions lazily create a client pointing at `https://names.zcash.me`. To point at a different endpoint:
+
+```typescript
+import { createClient } from "zcashname-sdk";
+
+const client = await createClient("http://localhost:3000");
+const reg = await client.resolve("alice");
+```
+
+`createClient` calls `status()` on startup and verifies the returned `uivk` field is in the pinned `KNOWN_UIVKS` list (testnet + mainnet). On mismatch it throws `ZNSError(ErrorType.UivkMismatch)`. To skip the check when developing against a local indexer:
+
+```typescript
+const client = await createClient("http://localhost:3000", { skipVerify: true });
+```
+
+## Error handling
+
+The SDK throws `ZNSError` with typed error codes:
+
+```typescript
+import { ZNSError, ErrorType } from "zcashname-sdk";
+
+try {
+  await resolve("alice");
+} catch (e) {
+  if (e instanceof ZNSError) {
+    switch (e.type) {
+      case ErrorType.HttpError:     // fetch returned non-2xx
+      case ErrorType.UivkMismatch:  // indexer reported a UIVK not in KNOWN_UIVKS
+      case ErrorType.InvalidParams: // JSON-RPC -32602
+      case ErrorType.InternalError: // JSON-RPC -32603 (or unknown)
+    }
+  }
+}
+```
+
+## Constants
+
+```typescript
+import {
+  DEFAULT_URL,
+  TESTNET_UIVK,
+  MAINNET_UIVK,
+  KNOWN_UIVKS,
+  CLAIM_PRICES,
+  DEFAULT_CLAIM_PRICE,
+} from "zcashname-sdk";
+```
+
+| Constant | Value |
+|----------|-------|
+| `DEFAULT_URL` | `"https://names.zcash.me"` |
+| `TESTNET_UIVK` | Pinned UIVK for the official testnet indexer |
+| `MAINNET_UIVK` | Pinned UIVK for the official mainnet indexer |
+| `KNOWN_UIVKS` | `[TESTNET_UIVK, MAINNET_UIVK]` - what `createClient` checks against |
+| `CLAIM_PRICES` | `Record<number, number>` of default zatoshi costs by length |
+| `DEFAULT_CLAIM_PRICE` | `25_000_000` - catchall for lengths not in `CLAIM_PRICES` |
+
+## What's not in the SDK
+
+The SDK does not ship signature verification, OTP/HMAC helpers, or admin Ed25519 signing. Memos are expected to arrive pre-signed from your server, and any local verification of the registration `signature` field is left to your Ed25519 library of choice (`@noble/ed25519` works in browsers and Node).
+
+## Recipes
+
+### Check availability before claiming
+
+```typescript
+import { isAvailable, isValidName } from "zcashname-sdk";
+
+async function canClaim(name: string): Promise<boolean> {
+  if (!isValidName(name)) return false;
+  return await isAvailable(name);
+}
+```
+
+### Sorted marketplace listings
+
+```typescript
+import { listings } from "zcashname-sdk";
+
+const items = await listings();
+const sorted = items.sort((a, b) => a.price - b.price);
+```
+
+### Validate before the user submits
+
+```typescript
+import { isValidName } from "zcashname-sdk";
+
+function validate(name: string): string | null {
+  if (!name) return "Enter a name";
+  if (!isValidName(name)) return "1–62 lowercase letters and digits only";
+  return null;
+}
+```
+
+## Next
+
+- [Direct RPC](/docs/sdk/direct-rpc) - when you don't want a SDK dependency.

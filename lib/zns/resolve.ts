@@ -28,7 +28,7 @@ export async function resolveName(
 
     const claimCostZats = await fetchClaimCost(normalized, network);
     if (claimCostZats == null) {
-      throw new Error("Pricing unavailable — indexer may be down.");
+      throw new Error("Pricing unavailable - indexer may be down.");
     }
 
     if (reserved && !reserved.redeemed) {

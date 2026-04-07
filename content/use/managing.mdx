@@ -1,0 +1,54 @@
+# Managing Names
+
+Once you own a name you have four operations available, all of which require [OTP verification](/docs/use/otp-verification) to prove you control the address the name is registered to.
+
+| Operation | Effect |
+|-----------|--------|
+| **Update** | Point the name at a different address |
+| **List** | Put it on the marketplace |
+| **Delist** | Remove it from the marketplace |
+| **Release** | Permanently give up the registration |
+
+List and Delist are covered in [Buying & Selling](/docs/use/buying-and-selling). This page walks through Update and Release.
+
+## Updating the address
+
+If you rotate your wallet keys, or you want the name to resolve to a different address:
+
+1. Search for your registered name.
+2. Click **Update Address**.
+3. Complete OTP verification against the **current** registered address.
+4. Enter the new Zcash unified address.
+5. Send the transaction.
+
+The memo is `ZNS:UPDATE:<name>:<new_ua>:<nonce>:<sig>`. Once the indexer processes the block, the name points at the new address. The old address is free to register a different name.
+
+## Releasing a name
+
+Release permanently gives up the registration. After a release the name returns to the **Available** state and anyone (including you) can claim it.
+
+1. Search for your registered name.
+2. Click **Release**.
+3. Complete OTP verification.
+4. Confirm - this is irreversible.
+5. Send the transaction.
+
+The memo is `ZNS:RELEASE:<name>:<nonce>:<sig>`. On success the indexer deletes the registration and any active listing for the name.
+
+**When would you release?** You probably won't. Release exists for names you never want to own again - for example, if you claimed something by mistake or a name has become unwanted baggage. For any other case, `UPDATE` to a burn address is cheaper and reversible.
+
+## Why OTP verification?
+
+ZNS has no accounts. The only way to prove you control a registered name is to prove you can spend from the address it's registered to. OTP verification does that by requiring a shielded transaction from that address - only the owner can authorize the operation. See [OTP Verification](/docs/use/otp-verification) for the mechanism.
+
+## Gotchas
+
+- **Update requires verifying the current address, not the new one.** You're proving you own the thing you're changing.
+- **Every management action consumes a nonce.** The indexer enforces strictly increasing nonces, so if two management actions race, the one with the higher nonce wins and the other is silently dropped.
+- **A name has exactly one address at any given time.** You can't "add" a second address with UPDATE - it replaces.
+- **Release is irrevocable the moment it's in a block.** The name can be re-claimed by anyone.
+
+## Next
+
+- [OTP Verification](/docs/use/otp-verification) - the verification mechanism.
+- [Name Lifecycle](/docs/learn/name-lifecycle) - all state transitions.
