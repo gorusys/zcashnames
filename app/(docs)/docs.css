@@ -1,0 +1,18 @@
+/**
+ * Tailwind utilities for docs-route components.
+ *
+ * The (docs) route loads `nextra-theme-docs/style.css` (Nextra's own bundled
+ * Tailwind v4 build) and does NOT load the site's globals.css. Without this
+ * file, classes used by components rendered inside MDX pages - like
+ * components/docs/WelcomeLanding.tsx - get stripped because Nextra's bundle
+ * was compiled against its own source set, not ours.
+ *
+ * This pulls in Tailwind utilities scoped to the components and MDX files we
+ * actually use in the docs route. Imported BEFORE Nextra's stylesheet in
+ * app/(docs)/docs/layout.tsx so Nextra wins on any class collisions.
+ */
+
+@import "tailwindcss";
+
+@source "../../components/docs/**/*.{ts,tsx}";
+@source "../../content/**/*.{md,mdx}";
