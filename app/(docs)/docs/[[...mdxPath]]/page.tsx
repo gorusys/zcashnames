@@ -1,5 +1,6 @@
 import { generateStaticParamsFor, importPage } from "nextra/pages";
 import { useMDXComponents as getMDXComponents } from "../../../../mdx-components";
+import { InlineEditor } from "../../../../components/docs/InlineEditor";
 
 export const generateStaticParams = generateStaticParamsFor("mdxPath");
 
@@ -22,6 +23,9 @@ export default async function Page(props: {
   return (
     <Wrapper toc={toc} metadata={metadata} {...rest}>
       <MDXContent {...props} params={params} />
+      {process.env.NODE_ENV === "development" && (
+        <InlineEditor slug={params.mdxPath ?? []} />
+      )}
     </Wrapper>
   );
 }
