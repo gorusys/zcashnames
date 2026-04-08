@@ -196,6 +196,21 @@ export default function HomePage() {
     }
   }
 
+  // Re-resolve a name in place after a successful action so the search result
+  // card reflects the new on-chain state without flicker or reordering.
+  // Errors are swallowed: the scanner already gave authoritative confirmation,
+  // so a refresh failure shouldn't surface an error to the user.
+  async function refreshResult(name: string) {
+    try {
+      const fresh = await resolveName(name, network);
+      setResults((prev) =>
+        prev.map((item) => (item.query === fresh.query ? fresh : item)),
+      );
+    } catch {
+      // Leave the stale entry in place.
+    }
+  }
+
   function closeVerifiedModal() {
     setVerifiedModal(null);
     setVmCopied(false);
@@ -581,7 +596,11 @@ export default function HomePage() {
       })()}
 
       {isClientMounted && modalTarget && (
-        <Zip321Modal target={modalTarget} onClose={() => setModalTarget(null)} />
+        <Zip321Modal
+          target={modalTarget}
+          onClose={() => setModalTarget(null)}
+          onSuccess={refreshResult}
+        />
       )}
     </div>
   );

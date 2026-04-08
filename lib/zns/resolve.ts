@@ -4,7 +4,7 @@ import { resolve, registrationStatus, status, fetchClaimCost, events, listForSal
 import { normalizeUsername, isValidUsername, zatsToZec, type Network } from "@/lib/zns/name";
 import { getExchangeRate } from "@/lib/exchange-rate";
 import { getReservedName } from "@/lib/zns/reserved";
-import type { ResolveName } from "@/lib/types";
+import type { Action, ResolveName } from "@/lib/types";
 
 export async function resolveName(
   rawName: string,
@@ -71,6 +71,48 @@ export async function resolveName(
     query: normalized,
     registration: reg,
   };
+}
+
+/**
+ * Check whether the resolver reflects the expected post-action state for `name`.
+ * Used by the scanner phase of Zip321Modal to know when an action has been mined.
+ *
+ * Returns "success" once the resolver matches the expected state, "empty" otherwise.
+ * Network/parsing errors are reported as "empty" so the polling loop keeps going.
+ */
+export async function checkScannerState(
+  name: string,
+  network: Network,
+  action: Action,
+  expected: { address?: string; priceZats?: number },
+): Promise<"empty" | "success"> {
+  try {
+    const reg = await resolve(name, network);
+
+    switch (action) {
+      case "claim":
+      case "buy":
+      case "update": {
+        if (!reg) return "empty";
+        if (!expected.address) return "empty";
+        return reg.address === expected.address ? "success" : "empty";
+      }
+      case "list": {
+        if (!reg || !reg.listing) return "empty";
+        if (expected.priceZats == null) return "empty";
+        return reg.listing.price === expected.priceZats ? "success" : "empty";
+      }
+      case "delist": {
+        if (!reg) return "empty";
+        return reg.listing == null ? "success" : "empty";
+      }
+      case "release": {
+        return reg == null ? "success" : "empty";
+      }
+    }
+  } catch {
+    return "empty";
+  }
 }
 
 export async function getHomeStats(network: Network = "testnet"): Promise<{ claimed: number; forSale: number; verifiedOnZcashMe: number; syncedHeight: number; uivk: string }> {

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { buildTransaction, checkUnlockCode } from "@/lib/zns/transaction";
+import { checkScannerState } from "@/lib/zns/resolve";
+import { checkMempool } from "@/lib/zns/mempool";
 import { validateAddress } from "@/lib/zns/name";
 import { buildZcashUri } from "@/lib/payment/zip321";
 import { generateSessionId, buildZvsMemo } from "@/lib/payment/memo";
@@ -28,14 +30,16 @@ export interface ModalTarget {
 interface Zip321ModalProps {
   target: ModalTarget;
   onClose: () => void;
+  onSuccess?: (name: string) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-type Phase = "unlock" | "input" | "otp" | "payment";
+type Phase = "unlock" | "input" | "otp" | "payment" | "scanning";
 
+type ScanState = "loading" | "not_detected" | "in_mempool" | "being_mined" | "mined";
 
 const ACTION_LABEL: Record<Action, string> = {
   claim: "Claim",
@@ -45,6 +49,33 @@ const ACTION_LABEL: Record<Action, string> = {
   delist: "Delist",
   release: "Release Name",
 };
+
+// Used in scanner copy: "Your {noun} hasn't been detected yet."
+const ACTION_NOUN: Record<Action, string> = {
+  claim: "claim",
+  buy: "purchase",
+  update: "address update",
+  list: "listing",
+  delist: "delist",
+  release: "release",
+};
+
+function minedMessage(action: Action, displayName: string): string {
+  switch (action) {
+    case "claim":
+      return `${displayName} is yours. Claim confirmed on-chain.`;
+    case "buy":
+      return `${displayName} is now yours. Purchase confirmed on-chain.`;
+    case "update":
+      return `Address updated. ${displayName} now resolves to your new address.`;
+    case "list":
+      return `${displayName} is now listed for sale.`;
+    case "delist":
+      return `${displayName} has been delisted.`;
+    case "release":
+      return `${displayName} has been released.`;
+  }
+}
 
 function parsePrice(raw: string): number | null {
   const n = raw.replace(/,/g, "").trim();
@@ -57,7 +88,7 @@ function parsePrice(raw: string): number | null {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
+export default function Zip321Modal({ target, onClose, onSuccess }: Zip321ModalProps) {
   const { name, action, registrationAddress, network, networkPassword, isReserved } = target;
   const { ZIP321_RECIPIENT_ADDRESS, OTP_SIGNIN_ADDR, OTP_AMOUNT, OTP_MAX_ATTEMPTS } =
     getNetworkConstants(network);
@@ -96,6 +127,15 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
   const [paymentAmountZec, setPaymentAmountZec] = useState(0);
   const [uriCopied, setUriCopied] = useState(false);
 
+  // Scanning phase
+  const [scanState, setScanState] = useState<ScanState>("loading");
+  // Sticky flag: once we've seen the tx in the mempool during this scanning
+  // session, treat any subsequent "empty mempool, empty resolver" as
+  // "being_mined" rather than regressing to "not_detected".
+  const sawMempoolRef = useRef(false);
+  // One-shot guard so onSuccess fires at most once per scanning session.
+  const firedSuccessRef = useRef(false);
+
   // QR theming
   const containerRef = useRef<HTMLDivElement>(null);
   const [qrFg, setQrFg] = useState("#f0f0f0");
@@ -123,6 +163,66 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  // Scanner polling — fires every 2s while in the scanning phase, stops on mined.
+  // Checks the mempool (mainnet only) and the resolver in parallel to handle the
+  // case where the tx is mined before the user clicks "I Sent It!" and never
+  // appears in the mempool we observe.
+  useEffect(() => {
+    if (phase !== "scanning") return;
+
+    let cancelled = false;
+    const expected = {
+      address: needsAddress ? addressInput.trim() : undefined,
+      priceZats: needsPrice ? Math.round((parsePrice(priceInput) ?? 0) * 1e8) : undefined,
+    };
+
+    async function poll() {
+      const [mempool, resolver] = await Promise.all([
+        checkMempool(name, network),
+        checkScannerState(name, network, action, expected),
+      ]);
+      if (cancelled) return;
+
+      if (mempool.found) sawMempoolRef.current = true;
+
+      if (resolver === "success") {
+        setScanState("mined");
+        if (!firedSuccessRef.current) {
+          firedSuccessRef.current = true;
+          onSuccess?.(name);
+        }
+      } else if (mempool.found) setScanState("in_mempool");
+      else if (sawMempoolRef.current) setScanState("being_mined");
+      else setScanState("not_detected");
+    }
+
+    sawMempoolRef.current = false;
+    firedSuccessRef.current = false;
+    setScanState("loading");
+    poll();
+    const id = setInterval(() => {
+      // Stop polling once we've reached the terminal state.
+      if (scanStateRef.current === "mined") {
+        clearInterval(id);
+        return;
+      }
+      poll();
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // We intentionally omit addressInput/priceInput from deps — they're
+    // captured once when the scanning phase begins and shouldn't restart polling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, name, network, action]);
+
+  // Ref mirror so the interval callback can read the latest scan state without
+  // having to re-create the interval on every state change.
+  const scanStateRef = useRef<ScanState>("loading");
+  useEffect(() => { scanStateRef.current = scanState; }, [scanState]);
 
   // Address validation (live)
   const addrValidation = addressInput.trim()
@@ -601,6 +701,97 @@ export default function Zip321Modal({ target, onClose }: Zip321ModalProps) {
               >
                 {uriCopied ? "Copied!" : "Copy URI"}
               </button>
+              <button
+                type="button"
+                onClick={() => setPhase("scanning")}
+                className="px-5 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80"
+                style={{ background: "var(--fg-heading)", color: "var(--color-background)" }}
+              >
+                I Sent It!
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Phase 4: Scanning ── */}
+        {phase === "scanning" && (
+          <div className="p-8 flex flex-col items-center gap-5 text-center">
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: "var(--fg-heading)" }}>
+                Scanning
+              </h2>
+              <p className="text-sm mt-1" style={{ color: "var(--fg-body)" }}>
+                Checking the mempool and resolver for <strong>{displayName}</strong>.
+              </p>
+            </div>
+
+            <div
+              className="w-full rounded-xl p-5 flex flex-col items-center gap-3"
+              style={{
+                background: "var(--color-raised)",
+                border: `1.5px solid ${
+                  scanState === "mined"
+                    ? "#22c55e"
+                    : scanState === "in_mempool" || scanState === "being_mined"
+                      ? "#ca8a04"
+                      : "var(--faq-border)"
+                }`,
+              }}
+            >
+              {scanState === "mined" ? (
+                <span
+                  className="flex items-center justify-center w-12 h-12 rounded-full"
+                  style={{ background: "var(--color-accent-green-light)", color: "var(--color-accent-green)" }}
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+              ) : (
+                <span
+                  className="inline-block w-6 h-6 rounded-full border-2 animate-spin"
+                  style={{
+                    borderColor: "var(--border-muted)",
+                    borderTopColor: "var(--fg-heading)",
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+
+              <p className="text-sm" style={{ color: "var(--fg-body)" }}>
+                {scanState === "loading" && "Checking…"}
+                {scanState === "not_detected" && (
+                  <>Your {ACTION_NOUN[action]} hasn&rsquo;t been detected yet. It may not have propagated, or wasn&rsquo;t sent correctly.</>
+                )}
+                {scanState === "in_mempool" && (
+                  <>Your {ACTION_NOUN[action]} is in the mempool. Waiting to be mined.</>
+                )}
+                {scanState === "being_mined" && (
+                  <>Your {ACTION_NOUN[action]} is being mined. Hang tight &mdash; this should only take a moment.</>
+                )}
+                {scanState === "mined" && minedMessage(action, displayName)}
+              </p>
+            </div>
+
+            <div className="flex gap-3 w-full justify-between items-center pt-1">
+              <button
+                type="button"
+                onClick={() => setPhase("payment")}
+                className="px-5 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80"
+                style={secondaryBtnStyle}
+              >
+                Back
+              </button>
+              <a
+                href={`/explorer?name=${encodeURIComponent(name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-opacity hover:opacity-80"
+                style={secondaryBtnStyle}
+              >
+                View on Explorer
+              </a>
               <button
                 type="button"
                 onClick={onClose}
