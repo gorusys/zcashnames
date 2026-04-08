@@ -4,80 +4,107 @@ type Benefit = {
   soon?: boolean;
 };
 
+type BenefitGroup = {
+  title: string;
+  items: Benefit[];
+};
+
 const benefitGradient =
   "radial-gradient(circle at 70% 50%, var(--feature-heading-line-from) 0%, transparent 70%)";
 
-const benefits: Benefit[] = [
+const benefitGroups: BenefitGroup[] = [
   {
-    title: "Send using simple names",
-    description: "No long addresses or manual entry",
+    title: "Easy to use",
+    items: [
+      {
+        title: "Send using simple names",
+        description: "No long addresses or manual entry",
+      },
+      {
+        title: "Update once, everywhere",
+        description: "Change your address without notifying others",
+      },
+    ],
   },
   {
-    title: "Own your .zcash name",
-    description: "Hold or trade as an asset",
+    title: "Yours to keep",
+    items: [
+      {
+        title: "Own and control your .zcash name",
+        description: "Hold, trade, or transfer - only you can make updates",
+      },
+      {
+        title: "No renewal fees",
+        description: "Just sign in once every 6 months",
+      },
+      {
+        title: "On-chain and tamper-resistant",
+        description: "Records cannot be altered or removed",
+      },
+    ],
   },
   {
-    title: "Update once, everywhere",
-    description: "Change your address without notifying others",
-  },
-  {
-    title: "Full control",
-    description: "Only the owner can update or transfer",
-  },
-  {
-    title: "On-chain and tamper-resistant",
-    description: "Records cannot be altered or removed",
-  },
-  {
-    title: "Private by default",
-    description: "Your name reveals nothing about your activity",
-  },
-  {
-    title: "Decentralized identity",
-    description: "Use your name across apps",
-    soon: true,
-  },
-  {
-    title: "Verify before sending",
-    description: "Profiles linked via Zcash.me",
-    soon: true,
+    title: "Private & verifiable",
+    items: [
+      {
+        title: "Private by default",
+        description: "Your name reveals nothing about your activity",
+      },
+      {
+        title: "Portable, verified identity",
+        description: "Use your name across app, like Zcash.me",
+        soon: true,
+      },
+    ],
   },
 ];
 
 function BenefitsBento() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {benefits.map((b, i) => (
-        <div
-          key={i}
-          className="relative rounded-xl p-6 overflow-hidden"
-          style={{ border: "1px solid var(--faq-border)" }}
-        >
-          <div
-            className="absolute inset-0 pointer-events-none opacity-20"
-            style={{ backgroundImage: benefitGradient }}
-            aria-hidden="true"
-          />
-          <div className="relative z-[1]">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <h3
-                className="type-section-subtitle font-semibold"
-                style={{ color: "var(--fg-heading)" }}
+    <div className="flex flex-col gap-10">
+      {benefitGroups.map((group, gi) => (
+        <div key={gi}>
+          <h3
+            className="type-kicker mb-4 px-1"
+            style={{ color: "var(--fg-muted)" }}
+          >
+            {group.title}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {group.items.map((b, i) => (
+              <div
+                key={i}
+                className="relative rounded-xl p-6 overflow-hidden"
+                style={{ border: "1px solid var(--faq-border)" }}
               >
-                {b.title}
-              </h3>
-              {b.soon && (
-                <span
-                  className="rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide [[data-theme=monochrome]_&]:!text-[var(--fg-heading)]"
-                  style={{ background: "rgba(234,179,8,0.15)", color: "#eab308" }}
-                >
-                  Soon
-                </span>
-              )}
-            </div>
-            <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
-              {b.description}
-            </p>
+                <div
+                  className="absolute inset-0 pointer-events-none opacity-20"
+                  style={{ backgroundImage: benefitGradient }}
+                  aria-hidden="true"
+                />
+                <div className="relative z-[1]">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <h4
+                      className="type-section-subtitle font-semibold"
+                      style={{ color: "var(--fg-heading)" }}
+                    >
+                      {b.title}
+                    </h4>
+                    {b.soon && (
+                      <span
+                        className="rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide [[data-theme=monochrome]_&]:!text-[var(--fg-heading)]"
+                        style={{ background: "rgba(234,179,8,0.15)", color: "#eab308" }}
+                      >
+                        Soon
+                      </span>
+                    )}
+                  </div>
+                  <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
+                    {b.description}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ))}
