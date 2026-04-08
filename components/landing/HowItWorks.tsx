@@ -136,22 +136,24 @@ export default function HowItWorks() {
       {/* Step boxes with arrows - side-by-side on desktop, stacked on mobile */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-4 md:gap-0 mb-14">
         {/* Step 1 */}
-        <div
-          className="rounded-xl p-6"
-          style={{ border: "1px solid var(--faq-border)" }}
-        >
-          <span
-            className="block text-4xl mb-1"
-            style={{ color: "var(--fg-heading)", fontFamily: "var(--font-cursive)" }}
-          >1</span>
+        <div className="flex flex-col">
           <h3
-            className="type-section-subtitle font-semibold mb-2"
-            style={{ color: "var(--fg-heading)" }}
-          >Get Early Access</h3>
-          <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
-            Invites are sent in order, and the earliest users get first pick of the most valuable .zcash names before others can claim them.
-            Free to join. No commitment.
-          </p>
+            className="type-kicker mb-4 px-1"
+            style={{ color: "var(--fg-muted)" }}
+          >First,</h3>
+          <div
+            className="rounded-xl p-6 flex-1"
+            style={{ border: "1px solid var(--faq-border)" }}
+          >
+            <h3
+              className="type-section-subtitle font-semibold mb-2"
+              style={{ color: "var(--fg-heading)" }}
+            >Get Early Access</h3>
+            <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
+              Invites are sent in order, and the earliest users get first pick of the most valuable .zcash names before others can claim them.
+              Free to join. No commitment.
+            </p>
+          </div>
         </div>
 
         {/* Arrow 1 - horizontal on desktop */}
@@ -168,22 +170,24 @@ export default function HowItWorks() {
         </div>
 
         {/* Step 2 */}
-        <div
-          className="rounded-xl p-6"
-          style={{ border: "1px solid var(--faq-border)" }}
-        >
-          <span
-            className="block text-4xl mb-1"
-            style={{ color: "var(--fg-heading)", fontFamily: "var(--font-cursive)" }}
-          >2</span>
+        <div className="flex flex-col">
           <h3
-            className="type-section-subtitle font-semibold mb-2"
-            style={{ color: "var(--fg-heading)" }}
-          >Move Up + Earn ZEC</h3>
-          <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
-            Every referral pushes you closer to the front of the line, giving you a better chance at high-demand names.
-            Plus, earn ZEC when your referrals claim a name.
-          </p>
+            className="type-kicker mb-4 px-1"
+            style={{ color: "var(--fg-muted)" }}
+          >Next,</h3>
+          <div
+            className="rounded-xl p-6 flex-1"
+            style={{ border: "1px solid var(--faq-border)" }}
+          >
+            <h3
+              className="type-section-subtitle font-semibold mb-2"
+              style={{ color: "var(--fg-heading)" }}
+            >Move Up + Earn ZEC</h3>
+            <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
+              Every referral pushes you closer to the front of the line, giving you a better chance at high-demand names.
+              Plus, earn ZEC when your referrals claim a name.
+            </p>
+          </div>
         </div>
 
         {/* Arrow 2 - horizontal on desktop */}
@@ -200,23 +204,25 @@ export default function HowItWorks() {
         </div>
 
         {/* Step 3 */}
-        <div
-          className="rounded-xl p-6"
-          style={{ border: "1px solid var(--faq-border)" }}
-        >
-          <span
-            className="block text-4xl mb-1"
-            style={{ color: "var(--fg-heading)", fontFamily: "var(--font-cursive)" }}
-          >3</span>
+        <div className="flex flex-col">
           <h3
-            className="type-section-subtitle font-semibold mb-2"
-            style={{ color: "var(--fg-heading)" }}
-          >Claim Your Name</h3>
-          <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
-            You&rsquo;ll receive an email when it&rsquo;s your turn.
-            Log in, choose your .zcash name, and secure it before the public launch.
-            Keep it, use it to transact, or sell it as demand grows.
-          </p>
+            className="type-kicker mb-4 px-1"
+            style={{ color: "var(--fg-muted)" }}
+          >Finally,</h3>
+          <div
+            className="rounded-xl p-6 flex-1"
+            style={{ border: "1px solid var(--faq-border)" }}
+          >
+            <h3
+              className="type-section-subtitle font-semibold mb-2"
+              style={{ color: "var(--fg-heading)" }}
+            >Claim Your Name</h3>
+            <p className="type-section-subtitle" style={{ color: "var(--fg-muted)" }}>
+              You&rsquo;ll receive an email when it&rsquo;s your turn.
+              Log in, choose your .zcash name, and secure it before the public launch.
+              Keep it, use it to transact, or sell it as demand grows.
+            </p>
+          </div>
         </div>
       </div>
 
