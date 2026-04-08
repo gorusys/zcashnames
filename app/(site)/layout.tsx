@@ -58,6 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" data-status="waitlist" suppressHydrationWarning>
       <head>
+        <link rel="me" href="https://zcash.me/zcashnames" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
