@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { normalizeUsername } from "@/lib/zns/name";
-import { submitWaitlist } from "@/lib/waitlist/waitlist";
+import { submitWaitlist, getWaitlistCountForName } from "@/lib/waitlist/waitlist";
 import SurveyForm from "@/components/SurveyForm";
 
 interface Props {
@@ -75,6 +75,7 @@ export default function WaitlistEntryForm({ usdPerZec, onConfirm, onReset }: Pro
   const [myReferralCode, setMyReferralCode] = useState("");
 
   const [surveyContactMsg, setSurveyContactMsg] = useState(false);
+  const [waitlistCount, setWaitlistCount] = useState(0);
 
   const referredByRef = useRef<string>("");
   const nameFieldTopRef = useRef<HTMLDivElement>(null);
@@ -102,6 +103,24 @@ export default function WaitlistEntryForm({ usdPerZec, onConfirm, onReset }: Pro
     }
     nameInputRef.current?.focus();
   };
+
+  useEffect(() => {
+    if (!confirmedName) {
+      setWaitlistCount(0);
+      return;
+    }
+    let cancelled = false;
+    getWaitlistCountForName(confirmedName)
+      .then((count) => {
+        if (!cancelled) setWaitlistCount(count);
+      })
+      .catch(() => {
+        if (!cancelled) setWaitlistCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [confirmedName]);
 
   useEffect(() => {
     if (!confirmedName) return;
@@ -372,6 +391,19 @@ export default function WaitlistEntryForm({ usdPerZec, onConfirm, onReset }: Pro
                   </svg>
                   Available
                 </span>
+                {waitlistCount > 0 && (
+                  <span
+                    className="inline-flex min-h-[26px] items-center rounded-[10px] border px-2.5 text-[0.78rem] font-extrabold leading-none"
+                    style={{
+                      borderColor: "var(--feature-chip-border-color)",
+                      background: "var(--feature-chip-bg)",
+                      color: "var(--home-result-link-fg)",
+                      marginLeft: "0.5rem",
+                    }}
+                  >
+                    {waitlistCount} waiting
+                  </span>
+                )}
               </div>
             </div>
 

@@ -288,6 +288,21 @@ export async function submitSurvey(
   return { error: null, shouldContact };
 }
 
+export async function getWaitlistCountForName(name: string): Promise<number> {
+  const normalized = normalizeUsername(name);
+  if (!isValidName(normalized)) return 0;
+  try {
+    const { count } = await db
+      .from("zn_waitlist")
+      .select("id", { count: "exact", head: true })
+      .eq("name", normalized)
+      .eq("email_verified", true);
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function getWaitlistStats(): Promise<{
   waitlist: number;
   referred: number;
