@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { checkNetworkPassword } from "@/lib/zns/transaction";
 import { getHomeStats } from "@/lib/zns/resolve";
@@ -130,6 +130,39 @@ export default function StatusToggle() {
 
   const activeIndex = Math.max(0, TABS.findIndex((tab) => tab.key === status));
 
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [tabMetrics, setTabMetrics] = useState<Array<{ left: number; width: number }>>([]);
+
+  useLayoutEffect(() => {
+    function measure() {
+      const next = tabRefs.current.map((el) =>
+        el ? { left: el.offsetLeft, width: el.offsetWidth } : { left: 0, width: 0 }
+      );
+      setTabMetrics(next);
+    }
+    measure();
+
+    const observers: ResizeObserver[] = [];
+    if (typeof ResizeObserver !== "undefined") {
+      tabRefs.current.forEach((el) => {
+        if (!el) return;
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        observers.push(ro);
+      });
+    }
+
+    document.fonts?.ready.then(measure).catch(() => {});
+
+    window.addEventListener("resize", measure);
+    return () => {
+      observers.forEach((ro) => ro.disconnect());
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  const activeMetrics = tabMetrics[activeIndex];
+
   function handleTabClick(key: StatusState) {
     if (key === status) return;
 
@@ -183,22 +216,26 @@ export default function StatusToggle() {
           className="absolute inset-y-0 rounded-full pointer-events-none"
           style={{
             left: 0,
-            width: `${100 / TABS.length}%`,
-            transform: `translateX(${activeIndex * 100}%)`,
-            transition: "transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
-            willChange: "transform",
+            width: activeMetrics ? `${activeMetrics.width}px` : 0,
+            transform: activeMetrics ? `translateX(${activeMetrics.left}px)` : undefined,
+            transition: tabMetrics.length
+              ? "transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1)"
+              : "none",
+            willChange: "transform, width",
             background: "var(--color-raised)",
             boxShadow: "0 0 0 2px var(--fg-heading)",
             zIndex: 0,
+            opacity: activeMetrics ? 1 : 0,
           }}
           aria-hidden="true"
         />
 
-        {TABS.map((tab) => (
+        {TABS.map((tab, i) => (
           <button
             key={tab.key}
+            ref={(el) => { tabRefs.current[i] = el; }}
             type="button"
-            className="relative z-10 flex items-center h-full px-2.5 rounded-full whitespace-nowrap transition-opacity duration-200 cursor-pointer"
+            className="relative z-10 flex items-center justify-center h-full px-2.5 rounded-full whitespace-nowrap transition-opacity duration-200 cursor-pointer"
             style={{ opacity: status === tab.key ? 1 : 0.4 }}
             aria-pressed={status === tab.key}
             onClick={() => handleTabClick(tab.key)}

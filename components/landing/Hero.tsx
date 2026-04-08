@@ -178,7 +178,7 @@ export default function Hero({
             className="type-section-subtitle text-center mt-4"
             style={{ color: "var(--fg-body)", letterSpacing: "-0.01em" }}
           >
-            Private transactions with human names instead of long strings.
+            A name is all you need to transact privately.
           </p>
         </div>
 
@@ -216,7 +216,7 @@ export default function Hero({
             className="type-section-subtitle hidden xl:block text-center xl:text-left"
             style={{ color: "var(--fg-body)", letterSpacing: "-0.01em", marginBottom: "1.75rem" }}
           >
-            Private transactions with human names instead of long strings.
+            A name is all you need to transact privately.
           </p>
 
           <div
