@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import Hero from "@/components/landing/Hero";
 import SearchForm from "@/components/search/SearchForm";
 import WaitlistEntryForm from "@/components/landing/WaitlistEntryForm";
+import FeedbackModal from "@/components/closedbeta/FeedbackModal";
 import HomeResultCard from "@/components/landing/HomeResultCard";
 import MarketStats from "@/components/landing/MarketStats";
 import FAQ from "@/components/landing/FAQ";
@@ -601,6 +602,10 @@ export default function HomePage() {
           onClose={() => setModalTarget(null)}
           onSuccess={refreshResult}
         />
+      )}
+
+      {isClientMounted && isSearchMode && (
+        <FeedbackModal defaultNetwork={network} />
       )}
     </div>
   );

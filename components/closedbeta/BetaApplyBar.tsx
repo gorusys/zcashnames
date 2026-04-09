@@ -1,0 +1,50 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useStatus } from "@/components/StatusToggle";
+
+/**
+ * Site-wide announcement bar pointing to /closedbeta/apply.
+ *
+ * Shown only on the home page in waitlist mode (i.e. visitors who haven't
+ * unlocked Mainnet/Testnet). Hidden on /closedbeta routes themselves so we
+ * don't badge people who already know about the program.
+ *
+ * Colors come from --announce-bar-* CSS variables in globals.css and adapt to
+ * the active theme (dark / light / monochrome).
+ */
+export default function BetaApplyBar() {
+  const pathname = usePathname();
+  const { isSearchMode } = useStatus();
+
+  // Only the home page in waitlist mode.
+  if (pathname !== "/") return null;
+  if (isSearchMode) return null;
+
+  return (
+    <Link
+      href="/closedbeta/apply"
+      className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[0.72rem] sm:text-sm font-semibold transition-opacity hover:opacity-90 whitespace-nowrap"
+      style={{
+        background: "var(--announce-bar-bg)",
+        color: "var(--announce-bar-fg)",
+        textDecoration: "none",
+      }}
+    >
+      <span
+        className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[0.55rem] sm:text-[0.65rem] font-bold uppercase tracking-wider shrink-0"
+        style={{
+          background: "var(--announce-bar-pill-bg)",
+          color: "var(--announce-bar-pill-fg)",
+        }}
+      >
+        Beta
+      </span>
+      <span className="truncate">
+        Try it, find bugs, earn ZEC.{" "}
+        <span className="font-bold underline">Apply &rarr;</span>
+      </span>
+    </Link>
+  );
+}

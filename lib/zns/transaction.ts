@@ -25,13 +25,6 @@ function verifyNetworkPassword(network: Network, password: string | undefined): 
   return password === expected;
 }
 
-export async function checkNetworkPassword(
-  network: Network,
-  password: string
-): Promise<{ ok: boolean }> {
-  return { ok: verifyNetworkPassword(network, password) };
-}
-
 export async function checkUnlockCode(
   name: string,
   code: string,

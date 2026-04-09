@@ -1,0 +1,12 @@
+[
+  {
+    "id": "tester_pacu",
+    "displayName": "Pacu",
+    "codeHash": "REPLACE_WITH_SHA256_HEX_OF_THEIR_CODE"
+  },
+  {
+    "id": "tester_nullc0py",
+    "displayName": "nullc0py",
+    "codeHash": "REPLACE_WITH_SHA256_HEX_OF_THEIR_CODE"
+  }
+]

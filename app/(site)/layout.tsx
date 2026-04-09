@@ -4,6 +4,7 @@ import { StatusProvider } from "@/components/StatusToggle";
 import { ThemeProvider } from "next-themes";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import BetaApplyBar from "@/components/closedbeta/BetaApplyBar";
 import { Analytics } from "@vercel/analytics/next";
 import { BRAND } from "@/lib/zns/brand";
 import "../globals.css";
@@ -89,6 +90,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
         <StatusProvider>
 
+        <BetaApplyBar />
         <Header />
         {children}
         <Footer />

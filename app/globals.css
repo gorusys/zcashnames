@@ -40,6 +40,12 @@
   --checkbox-accent: #f4b728;
   --checkbox-check-color: #1a1a1a;
 
+  /* Announcement bar (dark default) */
+  --announce-bar-bg: #f4b728;
+  --announce-bar-fg: #1a1a1a;
+  --announce-bar-pill-bg: #1a1a1a;
+  --announce-bar-pill-fg: #f4b728;
+
   /* Logo */
   --logo-filter: invert(1);
   --theme-media-filter-home: none;
@@ -248,6 +254,12 @@
   --checkbox-accent: #2b8feb;
   --checkbox-check-color: #ffffff;
 
+  /* Announcement bar */
+  --announce-bar-bg: #1d4ed8;
+  --announce-bar-fg: #ffffff;
+  --announce-bar-pill-bg: #ffffff;
+  --announce-bar-pill-fg: #1d4ed8;
+
   /* Logo */
   --logo-filter: none;
   --theme-media-filter-home: none;
@@ -401,6 +413,12 @@
   --waitlist-indicator-bg: var(--mono-3);
   --checkbox-accent: var(--mono-3);
   --checkbox-check-color: var(--mono-0);
+
+  /* Announcement bar */
+  --announce-bar-bg: var(--mono-3);
+  --announce-bar-fg: var(--mono-0);
+  --announce-bar-pill-bg: var(--mono-0);
+  --announce-bar-pill-fg: var(--mono-3);
 
   /* Logo/media */
   --logo-filter: brightness(0) invert(1) sepia(1) hue-rotate(30deg) saturate(8) brightness(0.9);

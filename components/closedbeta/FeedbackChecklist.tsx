@@ -1,0 +1,358 @@
+"use client";
+
+import { useMemo } from "react";
+import { BETA_CHECKLIST, type ChecklistItem } from "@/lib/beta/checklist";
+import { useChecklistProgress, type ChecklistStage } from "./useChecklistProgress";
+
+export type SubListId = "user" | "developer";
+
+interface Props {
+  /** Current tester's display name, or null if anonymous. */
+  testerName: string | null;
+  /** Active beta stage — testnet/mainnet progress is tracked separately. */
+  stage: ChecklistStage;
+  /** Tester's stated focus areas from beta_testers.focus_areas. Drives ordering. */
+  focus?: ("user" | "sdk")[];
+  /** Which sub-list (if any) is currently expanded. Owned by the parent so state survives tab switches. */
+  expandedSubList: SubListId | null;
+  /** Called when the user clicks a sub-list header. Parent decides accordion behavior. */
+  onToggleSubList: (id: SubListId) => void;
+  /** Hide the inline progress bar (e.g. when a parent renders one above the tabs). */
+  hideProgressBar?: boolean;
+  /** Called when the user clicks the per-item report arrow. */
+  onReport?: (itemId: string) => void;
+  /** ID of the item currently linked to the active report, if any. */
+  reportingItemId?: string | null;
+  /** Open the standalone popout window. Hidden in popout mode (parent passes undefined). */
+  onOpenPopout?: () => void;
+}
+
+interface SubListDef {
+  id: SubListId;
+  label: string;
+  items: ChecklistItem[];
+}
+
+const USER_ITEMS = BETA_CHECKLIST.filter((i) => i.group === "user" || i.group === "both");
+const DEV_ITEMS = BETA_CHECKLIST.filter((i) => i.group === "developer" || i.group === "both");
+
+/** Pure helper: which sub-list should start expanded given the tester's focus. */
+export function initialExpandedSubList(focus?: ("user" | "sdk")[]): SubListId {
+  const sdkOnly = focus?.length === 1 && focus[0] === "sdk";
+  return sdkOnly ? "developer" : "user";
+}
+
+export default function FeedbackChecklist({
+  testerName,
+  stage,
+  focus,
+  expandedSubList,
+  onToggleSubList,
+  hideProgressBar,
+  onReport,
+  reportingItemId,
+  onOpenPopout,
+}: Props) {
+  const { state, hydrated, completed, total, toggle, saveStatus } = useChecklistProgress(testerName, stage);
+
+  // Derive ordering from focus. SDK-only testers see Developer first.
+  // The "both" items appear in BOTH sub-lists but share state via item.id —
+  // ticking one instance updates the other immediately.
+  const sdkOnly = focus?.length === 1 && focus[0] === "sdk";
+  const subLists: SubListDef[] = sdkOnly
+    ? [
+        { id: "developer", label: "Developer experience", items: DEV_ITEMS },
+        { id: "user", label: "User experience", items: USER_ITEMS },
+      ]
+    : [
+        { id: "user", label: "User experience", items: USER_ITEMS },
+        { id: "developer", label: "Developer experience", items: DEV_ITEMS },
+      ];
+
+  // Per-sublist counts for the chevron header.
+  const subListCounts = useMemo(() => {
+    const counts: Record<SubListId, { done: number; total: number }> = {
+      user: { done: 0, total: 0 },
+      developer: { done: 0, total: 0 },
+    };
+    for (const item of USER_ITEMS) {
+      counts.user.total += 1;
+      if (state[item.id]) counts.user.done += 1;
+    }
+    for (const item of DEV_ITEMS) {
+      counts.developer.total += 1;
+      if (state[item.id]) counts.developer.done += 1;
+    }
+    return counts;
+  }, [state]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!hideProgressBar && (
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-muted)" }}>
+              Progress
+            </p>
+            <p className="text-xs" style={{ color: "var(--fg-body)" }}>
+              {hydrated ? `${completed} / ${total}` : `0 / ${total}`}
+            </p>
+          </div>
+
+          <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--color-raised)" }}>
+            <div
+              className="h-full transition-[width] duration-300"
+              style={{
+                width: hydrated && total > 0 ? `${(completed / total) * 100}%` : "0%",
+                background: "var(--color-accent-green)",
+              }}
+            />
+          </div>
+        </>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {subLists.map((sub) => {
+          const isOpen = expandedSubList === sub.id;
+          const counts = subListCounts[sub.id];
+          return (
+            <section key={sub.id}>
+              <button
+                type="button"
+                onClick={() => onToggleSubList(sub.id)}
+                aria-expanded={isOpen}
+                className="w-full flex items-center gap-2 py-2 cursor-pointer transition-opacity hover:opacity-80"
+                style={{ color: "var(--fg-muted)" }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-3.5 h-3.5 transition-transform shrink-0"
+                  style={{ transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
+                  aria-hidden="true"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-heading)" }}>
+                  {sub.label}
+                </span>
+                <span className="text-xs ml-auto" style={{ color: "var(--fg-muted)" }}>
+                  {counts.done} / {counts.total}
+                </span>
+              </button>
+
+              {isOpen && sub.id === "developer" && onOpenPopout && (
+                <div
+                  className="mt-2 mb-2 rounded-lg px-3 py-2.5 text-xs flex items-start gap-2"
+                  style={{
+                    background: "var(--color-raised)",
+                    border: "1px solid var(--border-muted)",
+                    color: "var(--fg-body)",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--fg-muted)" }} aria-hidden="true">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                  <span>
+                    Tip: <button
+                      type="button"
+                      onClick={onOpenPopout}
+                      className="underline cursor-pointer font-semibold"
+                      style={{ color: "var(--fg-heading)" }}
+                    >
+                      pop the feedback panel out into its own window
+                    </button>
+                    {" "}so you can keep the docs and your code editor in view while filing reports.
+                  </span>
+                </div>
+              )}
+
+              {isOpen && (
+                <ul className="flex flex-col gap-1.5 mt-2">
+                  {sub.items.map((item) => {
+                    const checked = !!state[item.id];
+                    const isReporting = reportingItemId === item.id;
+                    return (
+                      <li
+                        key={`${sub.id}-${item.id}`}
+                        className="flex items-stretch rounded-lg overflow-hidden transition-colors"
+                        style={{
+                          background: isReporting
+                            ? "var(--color-accent-green-light)"
+                            : checked
+                              ? "var(--color-raised)"
+                              : "transparent",
+                          border: `1px solid ${isReporting ? "var(--color-accent-green)" : "var(--border-muted)"}`,
+                        }}
+                      >
+                        {/* Checkbox — own clickable area, only marks complete */}
+                        <label
+                          className="flex items-start shrink-0 pl-3 pr-2 py-2.5 cursor-pointer"
+                          aria-label={`Mark complete: ${item.label}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span
+                            className="relative flex items-center justify-center shrink-0 rounded mt-0.5"
+                            style={{
+                              width: 18,
+                              height: 18,
+                              background: checked ? "var(--color-accent-green)" : "var(--color-surface)",
+                              border: `1.5px solid ${checked ? "var(--color-accent-green)" : "var(--border-muted)"}`,
+                              transition: "background 0.15s, border-color 0.15s",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggle(item.id)}
+                              className="absolute inset-0 opacity-0 cursor-pointer m-0"
+                            />
+                            {checked && (
+                              <svg viewBox="0 0 10 8" width="10" height="8" fill="none" stroke="var(--color-background, #1a1a1a)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M1 4l2.5 2.5L9 1" />
+                              </svg>
+                            )}
+                          </span>
+                        </label>
+
+                        {/* Label area — clicking activates "Reporting on" for this item. */}
+                        <div
+                          className="flex-1 min-w-0 px-1 py-2.5 relative"
+                          onClick={() => onReport?.(item.id)}
+                          role={onReport ? "button" : undefined}
+                          tabIndex={onReport ? 0 : undefined}
+                          aria-pressed={onReport ? isReporting : undefined}
+                          aria-label={onReport ? `Report on: ${item.label}` : undefined}
+                          onKeyDown={(e) => {
+                            if (!onReport) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onReport(item.id);
+                            }
+                          }}
+                          style={{ cursor: onReport ? "pointer" : "default" }}
+                        >
+                          {item.link ? (
+                            <a
+                              href={item.link.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1.5 text-sm leading-snug underline cursor-pointer"
+                              style={{
+                                color: checked ? "var(--fg-muted)" : "var(--fg-body)",
+                                textDecoration: checked ? "line-through" : "underline",
+                              }}
+                            >
+                              {item.label}
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5" aria-hidden="true">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                <polyline points="15 3 21 3 21 9" />
+                                <line x1="10" y1="14" x2="21" y2="3" />
+                              </svg>
+                            </a>
+                          ) : (
+                            <p
+                              className="text-sm leading-snug"
+                              style={{
+                                color: checked ? "var(--fg-muted)" : "var(--fg-body)",
+                                textDecoration: checked ? "line-through" : "none",
+                              }}
+                            >
+                              {item.label}
+                            </p>
+                          )}
+                          {item.hint && (
+                            <p className="text-xs mt-0.5" style={{ color: "var(--fg-muted)", lineHeight: 1.5 }}>
+                              {item.hint}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Per-item save indicator */}
+                        <div
+                          className="shrink-0 flex items-center justify-center"
+                          style={{ width: 22 }}
+                          aria-live="polite"
+                        >
+                          {saveStatus[item.id] === "saving" && (
+                            <span
+                              className="inline-block w-3 h-3 rounded-full border-2 animate-spin"
+                              style={{
+                                borderColor: "var(--border-muted)",
+                                borderTopColor: "var(--fg-muted)",
+                              }}
+                              aria-label="Saving"
+                              title="Saving"
+                            />
+                          )}
+                          {saveStatus[item.id] === "saved" && (
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="w-3.5 h-3.5"
+                              style={{ color: "var(--color-accent-green)" }}
+                              aria-label="Saved"
+                            >
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                          )}
+                        </div>
+
+                        {onReport && (
+                          <button
+                            type="button"
+                            onClick={() => onReport(item.id)}
+                            aria-label={`Report on: ${item.label}`}
+                            title="Report on this item"
+                            aria-pressed={isReporting}
+                            className="shrink-0 flex items-center justify-center px-3 cursor-pointer transition-colors"
+                            style={{
+                              color: isReporting ? "var(--color-accent-green)" : "var(--fg-muted)",
+                              borderLeft: `1px solid ${isReporting ? "var(--color-accent-green)" : "var(--border-muted)"}`,
+                              background: "transparent",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (isReporting) return;
+                              e.currentTarget.style.color = "var(--fg-heading)";
+                              e.currentTarget.style.background = "var(--color-raised)";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (isReporting) return;
+                              e.currentTarget.style.color = "var(--fg-muted)";
+                              e.currentTarget.style.background = "transparent";
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" aria-hidden="true">
+                              <path d="M5 12h14" />
+                              <path d="M13 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-center" style={{ color: "var(--fg-muted)", lineHeight: 1.6 }}>
+        Progress is saved {testerName ? "to your account and to this device" : "to this device only (sign in with your invite code to sync)"}.
+      </p>
+    </div>
+  );
+}

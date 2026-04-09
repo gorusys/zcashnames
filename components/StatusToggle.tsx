@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { checkNetworkPassword } from "@/lib/zns/transaction";
+import { verifyNetworkAccess } from "@/lib/beta/actions";
 import { getHomeStats } from "@/lib/zns/resolve";
 import { getWaitlistStats } from "@/lib/waitlist/waitlist";
 import type { Network } from "@/lib/zns/name";
@@ -126,6 +126,7 @@ export default function StatusToggle() {
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [welcomeName, setWelcomeName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activeIndex = Math.max(0, TABS.findIndex((tab) => tab.key === status));
@@ -181,13 +182,17 @@ export default function StatusToggle() {
     if (checking) return;
     setChecking(true);
     try {
-      const { ok } = await checkNetworkPassword(pendingTarget, input);
-      if (ok) {
+      const result = await verifyNetworkAccess(pendingTarget, input);
+      if (result.ok) {
         setNetworkPassword(input);
         setStatus(pendingTarget);
         setShowModal(false);
         setInput("");
         setError(false);
+        if (result.attributedTo) {
+          setWelcomeName(result.attributedTo);
+          window.setTimeout(() => setWelcomeName(null), 4000);
+        }
       } else {
         setError(true);
         setInput("");
@@ -208,6 +213,18 @@ export default function StatusToggle() {
 
   return (
     <>
+      {welcomeName && (
+        <div
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-[10001] rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg pointer-events-none"
+          style={{
+            background: "var(--color-accent-green-light)",
+            color: "var(--color-accent-green)",
+            border: "1px solid var(--color-accent-green)",
+          }}
+        >
+          Welcome, {welcomeName} &mdash; reports will be attributed to you.
+        </div>
+      )}
       <div
         className="relative flex items-center rounded-full h-8 text-sm font-bold tracking-tight leading-none"
         style={{ isolation: "isolate", background: "var(--color-raised)" }}
