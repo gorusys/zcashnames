@@ -28,6 +28,9 @@ data/*.db-journal
 # IDE
 .idea/
 
+# Claude Code
+CLAUDE.md
+
 # debug logs
 npm-debug.log*
 
