@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { isValidUsername, validateAddress } from "@/lib/zns/name";
 
 type Tab = "generate" | "import";
@@ -35,6 +34,10 @@ function tryBase64ToBytes(value: string): Uint8Array | null {
   } catch {
     return null;
   }
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 function isWholeNumber(value: string): boolean {
@@ -136,7 +139,6 @@ function validatePayload(payload: string): PayloadValidation {
 }
 
 export default function KeypairPage() {
-  const params = useSearchParams();
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
   const [ready, setReady] = useState(false);
@@ -173,10 +175,10 @@ export default function KeypairPage() {
   );
 
   useEffect(() => {
-    const initialPayload = params.get("payload");
+    const initialPayload = new URLSearchParams(window.location.search).get("payload");
     if (initialPayload) setPayload(initialPayload);
     setReady(true);
-  }, [params]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,7 +202,7 @@ export default function KeypairPage() {
         return;
       }
       try {
-        await window.crypto.subtle.importKey("raw", bytes, { name: "Ed25519" }, false, ["verify"]);
+        await window.crypto.subtle.importKey("raw", toArrayBuffer(bytes), { name: "Ed25519" }, false, ["verify"]);
         if (!cancelled) setImportPubError("");
       } catch {
         if (!cancelled) setImportPubError("Public key is not a valid Ed25519 key.");
@@ -229,7 +231,7 @@ export default function KeypairPage() {
         return;
       }
       try {
-        await window.crypto.subtle.importKey("pkcs8", bytes, { name: "Ed25519" }, false, ["sign"]);
+        await window.crypto.subtle.importKey("pkcs8", toArrayBuffer(bytes), { name: "Ed25519" }, false, ["sign"]);
         if (!cancelled) setImportPrivError("");
       } catch {
         if (!cancelled) setImportPrivError("Private key must be a valid Ed25519 PKCS8 key.");
@@ -314,14 +316,14 @@ export default function KeypairPage() {
 
     const pub = await window.crypto.subtle.importKey(
       "raw",
-      base64ToBytes(trimmedPub),
+      toArrayBuffer(base64ToBytes(trimmedPub)),
       { name: "Ed25519" },
       true,
       ["verify"],
     );
     const priv = await window.crypto.subtle.importKey(
       "pkcs8",
-      base64ToBytes(trimmedPriv),
+      toArrayBuffer(base64ToBytes(trimmedPriv)),
       { name: "Ed25519" },
       true,
       ["sign"],

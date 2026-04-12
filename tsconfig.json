@@ -19,5 +19,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "dist", "src", "public", "sdk", "spell-ui", "_upstream_zcashname", ".source_zcashname", "__source_zcashname"]
+  "exclude": ["node_modules", "dist", "src", "public", "sdk", "spell-ui", "_upstream_zcashname", ".source_zcashname", "__source_zcashname", "__source_ZNS"]
 }
