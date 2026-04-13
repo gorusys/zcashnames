@@ -105,6 +105,8 @@ We produce long-form articles and provide content kits that include:
 
 - You post content and include your waitlist referral link so all signups and purchases are tracked to you. 
 
+- Each user receives an access code tied to their referrer. Users are incentivized to reuse their code for a growing discount on multiple purchases.
+
 - Even your referral's referrals can be tracked back to you!
 
 
@@ -113,11 +115,6 @@ We produce long-form articles and provide content kits that include:
 
 # Compensation
 
-- Compensation is based on referral sales. You earn 15-30% per purchase depending on volume. 
-
-- Each user receives an access code tied to their referrer. Users are incentivized to reuse their code for a growing discount on multiple purchases.
-
-- Payouts are made in ZEC and settled weekly. Tracking is available in real time through a dashboard.
 
 ---
 `Compensation`
