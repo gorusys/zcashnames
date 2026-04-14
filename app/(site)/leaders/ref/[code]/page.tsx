@@ -85,6 +85,14 @@ export default function ReferralDashboardPage() {
     if (referralLevelFilter === "all") return data.descendants;
     return data.descendants.filter((entry) => entry.depth === referralLevelFilter);
   }, [data, referralLevelFilter]);
+  const referralLevelOptions = useMemo(
+    () => (data ? ["all" as const, ...data.depthCounts.map((row) => row.depth)] : ["all" as const]),
+    [data],
+  );
+  const activeReferralLevelIndex = Math.max(
+    0,
+    referralLevelOptions.findIndex((option) => option === referralLevelFilter),
+  );
 
   const projectedReferralPayout = (name: string, depth: number): number => {
     const bucket = getNameLengthBucket(name);
@@ -117,19 +125,28 @@ export default function ReferralDashboardPage() {
     <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <BackLink />
-        <div className="inline-flex items-center rounded-full border p-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em]" style={{ borderColor: "var(--leaders-card-border)" }}>
+        <div className="relative inline-grid grid-cols-2 items-center overflow-hidden rounded-full border p-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em]" style={{ borderColor: "var(--leaders-card-border)" }}>
+          <span
+            className="absolute bottom-1 top-1 w-[calc(50%-0.25rem)] rounded-full transition-transform duration-300 ease-out"
+            style={{
+              left: "0.25rem",
+              background: "var(--leaders-rank-gold)",
+              transform: `translateX(${scope === "confirmed" ? "100%" : "0"})`,
+            }}
+            aria-hidden="true"
+          />
           <button
             type="button"
-            className="cursor-pointer rounded-full px-3 py-1 transition-colors"
-            style={scope === "all" ? { background: "var(--leaders-rank-gold)", color: "var(--leaders-rank-text)" } : { color: "var(--fg-muted)" }}
+            className="relative z-10 cursor-pointer rounded-full px-3 py-1 transition-colors duration-300"
+            style={scope === "all" ? { color: "var(--leaders-rank-text)" } : { color: "var(--fg-muted)" }}
             onClick={() => setScope("all")}
           >
             All
           </button>
           <button
             type="button"
-            className="inline-flex cursor-pointer items-center justify-center rounded-full px-3 py-1 transition-colors"
-            style={scope === "confirmed" ? { background: "var(--leaders-rank-gold)", color: "var(--leaders-rank-text)" } : { color: "var(--fg-muted)" }}
+            className="relative z-10 inline-flex cursor-pointer items-center justify-center rounded-full px-3 py-1 transition-colors duration-300"
+            style={scope === "confirmed" ? { color: "var(--leaders-rank-text)" } : { color: "var(--fg-muted)" }}
             onClick={() => setScope("confirmed")}
             title="Confirmed email referrals"
             aria-label="Confirmed email referrals"
@@ -221,9 +238,25 @@ export default function ReferralDashboardPage() {
         <DashboardShell>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-fg-heading">Referrals</h2>
-            <div className="flex flex-wrap items-center gap-1 rounded-full border p-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em]" style={{ borderColor: "var(--leaders-card-border)" }}>
+            <div
+              className="relative grid items-center overflow-hidden rounded-full border p-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em]"
+              style={{
+                borderColor: "var(--leaders-card-border)",
+                gridTemplateColumns: `repeat(${referralLevelOptions.length}, minmax(0, 1fr))`,
+              }}
+            >
+              <span
+                className="absolute bottom-1 top-1 rounded-full transition-transform duration-300 ease-out"
+                style={{
+                  left: "0.25rem",
+                  width: `calc(${100 / referralLevelOptions.length}% - ${0.5 / referralLevelOptions.length}rem)`,
+                  background: "var(--leaders-rank-gold)",
+                  transform: `translateX(${activeReferralLevelIndex * 100}%)`,
+                }}
+                aria-hidden="true"
+              />
               <LevelFilterButton active={referralLevelFilter === "all"} onClick={() => setReferralLevelFilter("all")}>
-                All Levels
+                All
               </LevelFilterButton>
               {data.depthCounts.map((row) => (
                 <LevelFilterButton
@@ -231,46 +264,51 @@ export default function ReferralDashboardPage() {
                   active={referralLevelFilter === row.depth}
                   onClick={() => setReferralLevelFilter(row.depth)}
                 >
-                  L{row.depth}
+                  {toRoman(row.depth)}
                 </LevelFilterButton>
               ))}
             </div>
           </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[620px] text-left text-sm">
-              <thead>
-                <tr className="border-b text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
-                  <th className="py-2 pr-3">Name</th>
-                  <th className="px-3 py-2 text-right">Level</th>
-                  <th className="px-3 py-2">Referral code</th>
-                  <th className="px-3 py-2">Joined</th>
-                  <th className="px-3 py-2 text-center">Confirmed</th>
-                  <th className="py-2 pl-3 text-right">Initiated</th>
-                  <th className="py-2 pl-3 text-right">Payout</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleReferrals.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-10 text-center text-fg-muted">No referrals at this level.</td>
+          <div
+            className="mt-4 overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
+            style={{ maxHeight: `${Math.max(150, 58 + Math.max(1, visibleReferrals.length) * 42)}px` }}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[620px] text-left text-sm">
+                <thead>
+                  <tr className="border-b text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
+                    <th className="py-2 pr-3">Name</th>
+                    <th className="px-3 py-2 text-right">Level</th>
+                    <th className="px-3 py-2">Referral code</th>
+                    <th className="px-3 py-2">Joined</th>
+                    <th className="px-3 py-2 text-center">Confirmed</th>
+                    <th className="py-2 pl-3 text-right">Initiated</th>
+                    <th className="py-2 pl-3 text-right">Payout</th>
                   </tr>
-                ) : (
-                  visibleReferrals.map((entry) => (
-                    <tr key={entry.referral_code} className="border-b last:border-b-0" style={{ borderColor: "var(--leaders-card-border)" }}>
-                      <td className="py-2 pr-3 font-semibold text-fg-heading">{entry.name}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-fg-body">{entry.depth}</td>
-                      <td className="px-3 py-2 font-mono text-xs text-fg-muted">{entry.referral_code}</td>
-                      <td className="px-3 py-2 text-fg-body">{formatDate(entry.created_at)}</td>
-                      <td className="px-3 py-2 text-center text-fg-body">{entry.email_verified ? <EmailConfirmedIcon className="mx-auto h-4 w-4" /> : "-"}</td>
-                      <td className="py-2 pl-3 text-right font-semibold tabular-nums text-fg-heading">{entry.initiated_referrals}</td>
-                      <td className="py-2 pl-3 text-right font-semibold tabular-nums text-fg-heading">
-                        <ZecSymbol className="mr-0.5 inline-block" /> {formatZec(projectedReferralPayout(entry.name, entry.depth))}
-                      </td>
+                </thead>
+                <tbody className="transition-opacity duration-300">
+                  {visibleReferrals.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-10 text-center text-fg-muted">No referrals at this level.</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    visibleReferrals.map((entry) => (
+                      <tr key={entry.referral_code} className="border-b last:border-b-0 transition-colors duration-300" style={{ borderColor: "var(--leaders-card-border)" }}>
+                        <td className="py-2 pr-3 font-semibold text-fg-heading">{entry.name}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-fg-body">{toRoman(entry.depth)}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-fg-muted">{entry.referral_code}</td>
+                        <td className="px-3 py-2 text-fg-body">{formatDate(entry.created_at)}</td>
+                        <td className="px-3 py-2 text-center text-fg-body">{entry.email_verified ? <EmailConfirmedIcon className="mx-auto h-4 w-4" /> : "-"}</td>
+                        <td className="py-2 pl-3 text-right font-semibold tabular-nums text-fg-heading">{entry.initiated_referrals}</td>
+                        <td className="py-2 pl-3 text-right font-semibold tabular-nums text-fg-heading">
+                          <ZecSymbol className="mr-0.5 inline-block" /> {formatZec(projectedReferralPayout(entry.name, entry.depth))}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </DashboardShell>
       </section>
@@ -606,8 +644,8 @@ function LevelFilterButton({
   return (
     <button
       type="button"
-      className="cursor-pointer rounded-full px-3 py-1 transition-colors"
-      style={active ? { background: "var(--leaders-rank-gold)", color: "var(--leaders-rank-text)" } : { color: "var(--fg-muted)" }}
+      className="relative z-10 cursor-pointer whitespace-nowrap rounded-full px-3 py-1 transition-colors duration-300"
+      style={active ? { color: "var(--leaders-rank-text)" } : { color: "var(--fg-muted)" }}
       onClick={onClick}
     >
       {children}
