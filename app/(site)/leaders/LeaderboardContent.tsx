@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   Area,
   AreaChart,
@@ -199,6 +200,7 @@ function StatCard({
 }
 
 export default function LeaderboardContent() {
+  const [headerTitleTarget, setHeaderTitleTarget] = useState<HTMLElement | null>(null);
   const [timeSeries, setTimeSeries] = useState<TimeSeriesPoint[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [dailyRows, setDailyRows] = useState<DailyRow[]>([]);
@@ -262,6 +264,10 @@ export default function LeaderboardContent() {
   }, [filteredDailyRows]);
 
   useEffect(() => {
+    setHeaderTitleTarget(document.getElementById("site-route-title"));
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -297,13 +303,17 @@ export default function LeaderboardContent() {
 
   return (
     <>
+      {headerTitleTarget &&
+        createPortal(
+          <span className="site-route-title" aria-label="Current page">
+            Leaders
+          </span>,
+          headerTitleTarget,
+        )}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <h1
-          className="font-bold tracking-tight"
-          style={{ fontSize: "var(--type-section-title)", color: "var(--fg-heading)" }}
-        >
-          Leaderboard
-        </h1>
+        <Link href="/" className="text-sm font-semibold text-fg-muted underline-offset-4 transition-colors hover:text-fg-heading hover:underline">
+          Back to Home
+        </Link>
         <div
           className="inline-flex items-center rounded-full border p-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em]"
           style={{ borderColor: "var(--leaders-card-border)" }}
