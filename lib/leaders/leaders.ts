@@ -13,9 +13,11 @@ export interface TimeSeriesPoint {
   total: number;
   referred: number;
   nonReferred: number;
+  rewardsPot: number;
   totalDelta?: number;
   referredDelta?: number;
   nonReferredDelta?: number;
+  rewardsDelta?: number;
   topReferrer?: { name: string; count: number; streak: boolean; code?: string };
 }
 
@@ -78,6 +80,16 @@ function toWaitlistReferralRows(data: Record<string, unknown>[]): WaitlistReferr
 
 function roundZec(value: number): number {
   return Math.round(value * 10000) / 10000;
+}
+
+function calculateRewardsPot(rows: WaitlistReferralRow[], scope: ReferralScope): number {
+  const summaries = buildFixedDepthReferralSummaries(rows, scope);
+  const rewardsPot = Array.from(summaries.values()).reduce(
+    (total, summary) => total + (summary.directReferrals > 0 ? summary.potentialRewards : 0),
+    0,
+  );
+
+  return roundZec(rewardsPot);
 }
 
 function resolveTopReferrer(
@@ -145,16 +157,12 @@ export async function getWaitlistStats(
     if (error || !data) return { waitlist: 0, referred: 0, rewardsPot: 0 };
 
     const rows = toWaitlistReferralRows(data);
-    const summaries = buildFixedDepthReferralSummaries(rows, scope);
-    const rewardsPot = Array.from(summaries.values()).reduce(
-      (total, summary) => total + (summary.directReferrals > 0 ? summary.potentialRewards : 0),
-      0,
-    );
+    const rewardsPot = calculateRewardsPot(rows, scope);
 
     return {
       waitlist: waitlistCount ?? 0,
       referred: referredCount ?? 0,
-      rewardsPot: roundZec(rewardsPot),
+      rewardsPot,
     };
   } catch {
     return { waitlist: 0, referred: 0, rewardsPot: 0 };
@@ -167,38 +175,46 @@ export async function getLeadersTimeSeries(
   try {
     const { data, error } = await db
       .from("zn_waitlist")
-      .select("created_at, referred_by, email_verified")
+      .select("name, referral_code, referred_by, created_at, email_verified, cabal")
       .order("created_at", { ascending: true });
 
     if (error || !data) return [];
 
-    const { data: users } = await db
-      .from("zn_waitlist")
-      .select("referral_code, name")
-      .not("referral_code", "is", null);
-
+    const rows = toWaitlistReferralRows(data);
     const nameMap: Record<string, string> = {};
-    if (users) {
-      for (const user of users) {
-        nameMap[user.referral_code as string] = user.name as string;
+    for (const row of rows) {
+      if (row.referral_code && row.name && !nameMap[row.referral_code]) {
+        nameMap[row.referral_code] = row.name;
       }
     }
 
     const points: TimeSeriesPoint[] = [];
+    const cumulativeRows: WaitlistReferralRow[] = [];
     let total = 0;
     let referred = 0;
     let lastDate = "";
     let dailyCounts: Record<string, number> = {};
     let previousTopCode: string | null = null;
 
-    for (const row of data) {
-      const date = (row.created_at as string).slice(0, 10);
+    for (const rawRow of data) {
+      const row = {
+        name: (rawRow.name as string | null) ?? "",
+        referral_code: (rawRow.referral_code as string | null) ?? "",
+        referred_by: (rawRow.referred_by as string | null) ?? null,
+        created_at: rawRow.created_at as string,
+        email_verified: Boolean(rawRow.email_verified),
+        cabal: Boolean(rawRow.cabal),
+      };
+      const date = row.created_at.slice(0, 10);
       total += 1;
+      if (row.referral_code) cumulativeRows.push(row);
 
       const isCountedReferral =
-        Boolean(row.referred_by) && (scope === "all" || Boolean(row.email_verified));
+        Boolean(row.referred_by) && (scope === "all" || row.email_verified);
 
       if (isCountedReferral) referred += 1;
+
+      const rewardsPot = calculateRewardsPot(cumulativeRows, scope);
 
       if (date !== lastDate) {
         if (points.length > 0) {
@@ -208,10 +224,10 @@ export async function getLeadersTimeSeries(
         }
 
         dailyCounts = {};
-        points.push({ date, total, referred, nonReferred: total - referred });
+        points.push({ date, total, referred, nonReferred: total - referred, rewardsPot });
         lastDate = date;
       } else {
-        points[points.length - 1] = { date, total, referred, nonReferred: total - referred };
+        points[points.length - 1] = { date, total, referred, nonReferred: total - referred, rewardsPot };
       }
 
       if (isCountedReferral) {
@@ -229,6 +245,7 @@ export async function getLeadersTimeSeries(
       points[i].totalDelta = points[i].total - points[i - 1].total;
       points[i].referredDelta = points[i].referred - points[i - 1].referred;
       points[i].nonReferredDelta = points[i].nonReferred - points[i - 1].nonReferred;
+      points[i].rewardsDelta = roundZec(points[i].rewardsPot - points[i - 1].rewardsPot);
     }
 
     return points;

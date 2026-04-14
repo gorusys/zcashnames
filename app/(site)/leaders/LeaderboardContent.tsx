@@ -6,6 +6,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,6 +23,8 @@ import {
   type ReferralScope,
   type TimeSeriesPoint,
 } from "@/lib/leaders/leaders";
+
+const REWARDS_CHART_COLOR = "#22c55e";
 
 function ZecSymbol({ className }: { className?: string }) {
   return (
@@ -93,6 +96,7 @@ function ChartTooltip({
 
   const total = payload.find((p) => p.name === "nonReferred");
   const referred = payload.find((p) => p.name === "referred");
+  const rewards = payload.find((p) => p.name === "rewardsPot");
   const totalVal = (total?.value ?? 0) + (referred?.value ?? 0);
   const point = payload[0]?.payload;
   const topReferrer = point?.topReferrer;
@@ -103,6 +107,16 @@ function ChartTooltip({
       <span className="ml-1 text-fg-muted" style={{ opacity: 0.7 }}>
         ({d > 0 ? "+" : ""}
         {d})
+      </span>
+    );
+  };
+
+  const formatZecDelta = (d: number | undefined) => {
+    if (d === undefined) return null;
+    return (
+      <span className="ml-1 text-fg-muted" style={{ opacity: 0.7 }}>
+        ({d > 0 ? "+" : ""}
+        {formatZec(d)})
       </span>
     );
   };
@@ -130,6 +144,13 @@ function ChartTooltip({
           {referred?.value ?? 0}
         </span>
         {formatDelta(point?.referredDelta)}
+      </p>
+      <p>
+        Rewards:{" "}
+        <span className="font-semibold" style={{ color: REWARDS_CHART_COLOR }}>
+          <ZecSymbol className="mr-0.5 inline-block" /> {formatZec(rewards?.value ?? 0)}
+        </span>
+        {formatZecDelta(point?.rewardsDelta)}
       </p>
       {topReferrer && (
         <p className="mt-2 text-[0.78rem] text-fg-muted">
@@ -323,12 +344,20 @@ export default function LeaderboardContent() {
           borderColor: "var(--leaders-card-border)",
         }}
       >
-        <h2
-          className="mb-4 font-semibold"
-          style={{ fontSize: "var(--type-section-subtitle)", color: "var(--fg-heading)" }}
-        >
-          Waitlist Growth
-        </h2>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2
+            className="font-semibold"
+            style={{ fontSize: "var(--type-section-subtitle)", color: "var(--fg-heading)" }}
+          >
+            Waitlist
+          </h2>
+          <h2
+            className="font-semibold"
+            style={{ fontSize: "var(--type-section-subtitle)", color: "var(--fg-heading)" }}
+          >
+            Rewards
+          </h2>
+        </div>
 
         {loading ? (
           <div className="flex h-[300px] items-center justify-center">
@@ -338,7 +367,7 @@ export default function LeaderboardContent() {
           <p className="py-20 text-center text-fg-muted">No data yet.</p>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={timeSeries} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+            <AreaChart data={timeSeries} margin={{ top: 4, right: -12, bottom: 0, left: -12 }}>
               <defs>
                 <linearGradient id="gradReferred" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--leaders-area-referred)" stopOpacity={0.4} />
@@ -357,13 +386,23 @@ export default function LeaderboardContent() {
                 axisLine={{ stroke: "var(--border)" }}
               />
               <YAxis
+                yAxisId="waitlist"
                 tick={{ fill: "var(--fg-muted)", fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: "var(--border)" }}
                 allowDecimals={false}
               />
+              <YAxis
+                yAxisId="rewards"
+                orientation="right"
+                tick={{ fill: "var(--fg-muted)", fontSize: 12 }}
+                tickLine={false}
+                axisLine={{ stroke: "var(--border)" }}
+                tickFormatter={(value) => `${Math.round(Number(value))}`}
+              />
               <Tooltip content={<ChartTooltip />} />
               <Area
+                yAxisId="waitlist"
                 type="monotone"
                 dataKey="referred"
                 stackId="1"
@@ -372,12 +411,22 @@ export default function LeaderboardContent() {
                 strokeWidth={2}
               />
               <Area
+                yAxisId="waitlist"
                 type="monotone"
                 dataKey="nonReferred"
                 stackId="1"
                 stroke="var(--leaders-area-non-referred)"
                 fill="url(#gradNonReferred)"
                 strokeWidth={2}
+              />
+              <Line
+                yAxisId="rewards"
+                type="monotone"
+                dataKey="rewardsPot"
+                stroke={REWARDS_CHART_COLOR}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, fill: REWARDS_CHART_COLOR }}
               />
             </AreaChart>
           </ResponsiveContainer>
