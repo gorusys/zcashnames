@@ -192,7 +192,7 @@ export default function ReferralDashboardPage() {
         </div>
       </section>
 
-      <section className="mb-8 grid gap-3 sm:grid-cols-3">
+      <section className="mb-8 grid grid-cols-3 gap-3">
         <MetricCard
           label="Direct"
           value={data.directReferrals.length.toLocaleString()}
@@ -273,32 +273,32 @@ export default function ReferralDashboardPage() {
             className="mt-4 overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
             style={{ maxHeight: `${Math.max(150, 58 + Math.max(1, visibleReferrals.length) * 42)}px` }}
           >
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] text-left text-sm">
+            <div className="max-w-full overflow-x-auto">
+              <table className="w-full min-w-[460px] text-left text-sm">
                 <thead>
                   <tr className="border-b text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
                     <th className="py-2 pr-3">Name</th>
-                    <th className="px-3 py-2 text-right">Level</th>
-                    <th className="px-3 py-2">Referral code</th>
+                    <th className="px-3 py-2 text-right">Lvl</th>
                     <th className="px-3 py-2">Joined</th>
-                    <th className="px-3 py-2 text-center">Confirmed</th>
-                    <th className="py-2 pl-3 text-right">Initiated</th>
-                    <th className="py-2 pl-3 text-right">Payout</th>
+                    <th className="py-2 pl-3 text-right">Refs</th>
+                    <th className="py-2 pl-3 text-right">Reward</th>
                   </tr>
                 </thead>
                 <tbody className="transition-opacity duration-300">
                   {visibleReferrals.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-10 text-center text-fg-muted">No referrals at this level.</td>
+                      <td colSpan={5} className="py-10 text-center text-fg-muted">No referrals at this level.</td>
                     </tr>
                   ) : (
                     visibleReferrals.map((entry) => (
                       <tr key={entry.referral_code} className="border-b last:border-b-0 transition-colors duration-300" style={{ borderColor: "var(--leaders-card-border)" }}>
-                        <td className="py-2 pr-3 font-semibold text-fg-heading">{entry.name}</td>
+                        <td className="py-2 pr-3 font-semibold text-fg-heading">
+                          <Link href={`/leaders/ref/${encodeURIComponent(entry.referral_code)}`} className="underline-offset-2 hover:underline">
+                            {entry.name}
+                          </Link>
+                        </td>
                         <td className="px-3 py-2 text-right tabular-nums text-fg-body">{toRoman(entry.depth)}</td>
-                        <td className="px-3 py-2 font-mono text-xs text-fg-muted">{entry.referral_code}</td>
                         <td className="px-3 py-2 text-fg-body">{formatDate(entry.created_at)}</td>
-                        <td className="px-3 py-2 text-center text-fg-body">{entry.email_verified ? <EmailConfirmedIcon className="mx-auto h-4 w-4" /> : "-"}</td>
                         <td className="py-2 pl-3 text-right font-semibold tabular-nums text-fg-heading">{entry.initiated_referrals}</td>
                         <td className="py-2 pl-3 text-right font-semibold tabular-nums text-fg-heading">
                           <ZecSymbol className="mr-0.5 inline-block" /> {formatZec(projectedReferralPayout(entry.name, entry.depth))}
@@ -343,7 +343,7 @@ export default function ReferralDashboardPage() {
                     <ProjectionStat label="Revenue" value={<><ZecSymbol className="mr-0.5 inline-block" /> {formatZec(projection.projectedRevenue)}</>} />
                     <ProjectionStat label="Rate" value={`${Math.round(projection.commissionRate * 100)}%`} />
                   </div>
-                  <div className="mt-5 overflow-x-auto">
+                  <div className="mt-5 max-w-full overflow-x-auto">
                     <table className="w-full min-w-[640px] text-left text-sm">
                       <thead>
                         <tr className="border-b text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
@@ -438,23 +438,25 @@ function RewardSchedule({
       </div>
 
       {model === "fixed" ? (
-        <div className="mt-5 grid gap-3">
-          <div className="grid grid-cols-[3.5rem_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-right text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
-            <span className="text-left">Level</span>
-            <span>Attributed</span>
-            <span>24h</span>
-            <span>7d</span>
-            <span>30d</span>
-            <span>Total</span>
+        <div className="mt-5 max-w-full overflow-x-auto">
+          <div className="grid min-w-[460px] gap-3">
+            <div className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-right text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
+              <span>Lvl</span>
+              <span>Refs</span>
+              <span>24h</span>
+              <span>7d</span>
+              <span>30d</span>
+              <span>Rewards</span>
+            </div>
+            {fixedLevels.map((level) => (
+              <FixedScheduleRow
+                key={level}
+                level={level}
+                attributedCount={depthCountMap.get(level) ?? 0}
+                recentCounts={recentCountsByDepth.get(level) ?? { day: 0, week: 0, month: 0 }}
+              />
+            ))}
           </div>
-          {fixedLevels.map((level) => (
-            <FixedScheduleRow
-              key={level}
-              level={level}
-              attributedCount={depthCountMap.get(level) ?? 0}
-              recentCounts={recentCountsByDepth.get(level) ?? { day: 0, week: 0, month: 0 }}
-            />
-          ))}
         </div>
       ) : (
         <div className="mt-5 grid gap-3 text-sm">
@@ -486,10 +488,10 @@ function FixedScheduleRow({
 
   return (
     <div
-      className="grid grid-cols-[3.5rem_1fr_1fr_1fr_1fr_1fr] items-center gap-3 rounded-lg border px-3 py-2"
+      className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1fr_1fr] items-center gap-3 rounded-lg border px-3 py-2"
       style={{ borderColor: "var(--leaders-card-border)" }}
     >
-      <p className="text-sm font-bold text-fg-heading">{toRoman(level)}</p>
+      <p className="text-right text-sm font-bold text-fg-heading">{toRoman(level)}</p>
       <ScheduleMetric value={attributedCount.toLocaleString()} />
       <ScheduleMetric value={formatDelta(recentCounts.day)} muted={recentCounts.day === 0} />
       <ScheduleMetric value={formatDelta(recentCounts.week)} muted={recentCounts.week === 0} />
@@ -590,7 +592,7 @@ function toRoman(value: number): string {
 
 function DashboardShell({ children }: { children: ReactNode }) {
   return (
-    <section className="rounded-2xl border p-5" style={{ background: "var(--leaders-card-bg)", borderColor: "var(--leaders-card-border)" }}>
+    <section className="min-w-0 rounded-2xl border p-5" style={{ background: "var(--leaders-card-bg)", borderColor: "var(--leaders-card-border)" }}>
       {children}
     </section>
   );
@@ -611,14 +613,14 @@ function MetricCard({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-2xl border p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)]"
+      className="rounded-2xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)] sm:p-5"
       style={{
         background: active ? "var(--market-stats-segment-active-bg)" : "var(--leaders-card-bg)",
         borderColor: "var(--leaders-card-border)",
       }}
     >
-      <div className="text-2xl font-bold tabular-nums text-fg-heading">{value}</div>
-      <div className="mt-1 text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">{label}</div>
+      <div className="text-xl font-bold tabular-nums text-fg-heading sm:text-2xl">{value}</div>
+      <div className="mt-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-fg-muted sm:text-[0.78rem] sm:tracking-[0.08em]">{label}</div>
     </button>
   );
 }
