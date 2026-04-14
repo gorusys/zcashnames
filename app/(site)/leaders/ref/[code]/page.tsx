@@ -852,7 +852,7 @@ function ScheduleMetric({
   muted?: boolean;
 }) {
   return (
-    <div className="text-right">
+    <div className="text-center">
       <p className={`${strong ? "text-lg" : "text-base"} font-bold tabular-nums ${muted ? "text-fg-muted" : "text-fg-heading"}`}>{value}</p>
     </div>
   );
