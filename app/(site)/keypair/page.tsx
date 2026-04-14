@@ -1,164 +1,55 @@
 "use client";
 
 import { getPublicKeyAsync, signAsync } from "@noble/ed25519";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { isValidUsername, validateAddress } from "@/lib/zns/name";
-
-type Tab = "generate" | "import";
-type CopyField = "pubkey" | "privkey" | "payload" | "signature" | "memo";
+import { Suspense, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { validatePayload, payloadBorderStyle, payloadMessageColor } from "@/lib/zns/payload";
+import type { PayloadValidation } from "@/lib/zns/payload";
 
 function bytesToBase64(bytes: ArrayBuffer | Uint8Array): string {
-  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  let binary = "";
-  for (let i = 0; i < view.length; i += 1) binary += String.fromCharCode(view[i]);
-  return btoa(binary);
-}
-
-function base64ToBytes(value: string): Uint8Array {
-  const normalized = value.trim().replace(/\s+/g, "");
-  const binary = atob(normalized);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)));
 }
 
 function tryBase64ToBytes(value: string): Uint8Array | null {
   try {
-    return base64ToBytes(value);
+    const bin = atob(value.trim().replace(/\s+/g, ""));
+    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
   } catch {
     return null;
   }
 }
 
-function isWholeNumber(value: string): boolean {
-  return /^\d+$/.test(value);
+function CopyBtn({ value, label, onCopy }: { value: string; label: string; onCopy: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      disabled={!value}
+      className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+      style={{ background: "transparent", border: "1.5px solid var(--border-muted)", color: "var(--fg-body)" }}
+    >
+      {label}
+    </button>
+  );
 }
 
-function validatePayload(payload: string) {
-  const raw = payload.trim();
-  if (!raw) return { level: "empty", message: "No payload yet. Paste the payload from the signing modal." };
-
-  if (raw.startsWith("ZNS-SOV-V1|")) {
-    return {
-      level: "warning",
-      message: "Legacy payload format detected. Signing still works, but current flow uses ACTION:name:... format.",
-    };
-  }
-
-  const parts = raw.split(":");
-  const action = (parts[0] ?? "").toUpperCase();
-
-  if (!action) {
-    return { level: "error", message: "Missing action. Expected format like CLAIM:name:address." };
-  }
-
-  const ensureName = (name: string) => {
-    if (!isValidUsername(name)) {
-      return { level: "error", message: "Name is invalid. Use lowercase a-z and 0-9, 1 to 62 chars." };
-    }
-    return null;
-  };
-
-  const ensureAddress = (address: string) => {
-    const v = validateAddress(address);
-    if (!v.valid || v.rejected) {
-      return { level: "error", message: v.warning || "Address is invalid for this payload." };
-    }
-    if (v.warning) return { level: "warning", message: `Address warning: ${v.warning}` };
-    return null;
-  };
-
-  switch (action) {
-    case "CLAIM":
-    case "BUY": {
-      if (parts.length !== 3) {
-        return { level: "error", message: `Expected ${action}:name:address.` };
-      }
-      const nameError = ensureName(parts[1] ?? "");
-      if (nameError) return nameError;
-      const addressError = ensureAddress(parts[2] ?? "");
-      if (addressError) return addressError;
-      return { level: "valid", message: `${action} payload looks valid.` };
-    }
-    case "UPDATE": {
-      if (parts.length !== 4) {
-        return { level: "error", message: "Expected UPDATE:name:address:nonce." };
-      }
-      const nameError = ensureName(parts[1] ?? "");
-      if (nameError) return nameError;
-      const addressError = ensureAddress(parts[2] ?? "");
-      if (addressError) return addressError;
-      if (!isWholeNumber(parts[3] ?? "")) {
-        return { level: "error", message: "Nonce must be a whole number." };
-      }
-      return { level: "valid", message: "UPDATE payload looks valid." };
-    }
-    case "LIST": {
-      if (parts.length !== 4) {
-        return { level: "error", message: "Expected LIST:name:price_zats:nonce." };
-      }
-      const nameError = ensureName(parts[1] ?? "");
-      if (nameError) return nameError;
-      const price = parts[2] ?? "";
-      if (!isWholeNumber(price) || Number(price) <= 0) {
-        return { level: "error", message: "Price must be a positive whole number in zats." };
-      }
-      if (!isWholeNumber(parts[3] ?? "")) {
-        return { level: "error", message: "Nonce must be a whole number." };
-      }
-      return { level: "valid", message: "LIST payload looks valid." };
-    }
-    case "DELIST":
-    case "RELEASE": {
-      if (parts.length !== 3) {
-        return { level: "error", message: `Expected ${action}:name:nonce.` };
-      }
-      const nameError = ensureName(parts[1] ?? "");
-      if (nameError) return nameError;
-      if (!isWholeNumber(parts[2] ?? "")) {
-        return { level: "error", message: "Nonce must be a whole number." };
-      }
-      return { level: "valid", message: `${action} payload looks valid.` };
-    }
-    default:
-      return {
-        level: "warning",
-        message: "Unrecognized action format. You can still sign, but your transaction may not be interpreted correctly.",
-      };
-  }
-}
-
-export default function KeypairPage() {
+function KeypairPageInner() {
+  const searchParams = useSearchParams();
+  const initialPayload = searchParams.get("payload") ?? "";
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string>("");
-  const [tab, setTab] = useState<Tab>("import");
-  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [tab, setTab] = useState<"generate" | "import">("import");
 
   const [seed, setSeed] = useState<Uint8Array | null>(null);
   const [pubkeyB64, setPubkeyB64] = useState("");
 
-  const [payload, setPayload] = useState("");
+  const [payload, setPayload] = useState(initialPayload);
   const [signatureB64, setSignatureB64] = useState("");
 
   const [importPrivB64, setImportPrivB64] = useState("");
   const [importPrivError, setImportPrivError] = useState("");
   const [exportLabel, setExportLabel] = useState("");
-
-  const [copied, setCopied] = useState<Record<CopyField, boolean>>({
-    pubkey: false,
-    privkey: false,
-    payload: false,
-    signature: false,
-    memo: false,
-  });
-
-  useEffect(() => {
-    const initialPayload = new URLSearchParams(window.location.search).get("payload");
-    if (initialPayload) setPayload(initialPayload);
-    setReady(true);
-  }, []);
 
   const privkeyB64 = seed ? bytesToBase64(seed) : "";
   const payloadValidation = useMemo(() => validatePayload(payload), [payload]);
@@ -169,7 +60,6 @@ export default function KeypairPage() {
   const isGeneratedKey = tab === "generate" && !!seed;
 
   async function generateKeypair() {
-    setBusy(true);
     setError("");
     try {
       const s = crypto.getRandomValues(new Uint8Array(32));
@@ -179,8 +69,6 @@ export default function KeypairPage() {
       setSignatureB64("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to generate keypair.");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -217,34 +105,11 @@ export default function KeypairPage() {
     }
   }
 
-  function markCopied(field: CopyField) {
-    setCopied((prev) => ({ ...prev, [field]: true }));
-    window.setTimeout(() => {
-      setCopied((prev) => ({ ...prev, [field]: false }));
-    }, 1500);
-  }
-
-  async function copyText(value: string, field: CopyField) {
+  async function copyText(value: string) {
     try {
       await navigator.clipboard.writeText(value);
-      markCopied(field);
     } catch {
       setError("Clipboard unavailable. Copy manually.");
-    }
-  }
-
-  async function pastePayloadFromClipboard() {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) {
-        setError("Clipboard is empty.");
-        return;
-      }
-      setPayload(text);
-      markCopied("payload");
-      setError("");
-    } catch {
-      setError("Clipboard read is blocked. Paste manually into the payload field.");
     }
   }
 
@@ -257,7 +122,6 @@ export default function KeypairPage() {
       setError("Load a keypair first.");
       return;
     }
-    setBusy(true);
     setError("");
     try {
       const data = new TextEncoder().encode(payload.trim());
@@ -265,8 +129,6 @@ export default function KeypairPage() {
       setSignatureB64(bytesToBase64(sig));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to sign payload.");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -319,7 +181,8 @@ export default function KeypairPage() {
     setTab("import");
   }
 
-  if (!ready) return null;
+  const borderStyle = (v: PayloadValidation) => payloadBorderStyle(v.level);
+  const msgColor = (v: PayloadValidation) => payloadMessageColor(v.level);
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10">
@@ -354,7 +217,6 @@ export default function KeypairPage() {
           </p>
         )}
 
-        {/* Step 1: Keypair — always visible */}
         <div className="mt-6 rounded-xl border p-4" style={{ borderColor: "var(--border-muted)" }}>
           <h2 className="text-sm font-bold" style={{ color: "var(--fg-heading)" }}>
             1. Source your key
@@ -374,13 +236,13 @@ export default function KeypairPage() {
                   : { background: "transparent", border: "1.5px solid var(--border-muted)", color: "var(--fg-body)" }
               }
             >
-              Import a Keypair
+              Use Existing Keypair
             </button>
             <button
               type="button"
               onClick={() => {
                 setTab("generate");
-                if (tab !== "generate" && !busy) {
+                if (tab !== "generate") {
                   void generateKeypair();
                 }
               }}
@@ -410,19 +272,7 @@ export default function KeypairPage() {
                   className="w-full rounded-xl px-3 py-2 text-xs font-mono"
                   style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
                 />
-                <button
-                  type="button"
-                  onClick={() => copyText(pubkeyB64, "pubkey")}
-                  disabled={!pubkeyB64}
-                  className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                  style={{
-                    background: copied.pubkey ? "var(--color-accent-green-light)" : "transparent",
-                    border: `1.5px solid ${copied.pubkey ? "var(--color-accent-green)" : "var(--border-muted)"}`,
-                    color: copied.pubkey ? "var(--color-accent-green)" : "var(--fg-body)",
-                  }}
-                >
-                  {copied.pubkey ? "Copied!" : "Copy Public Key"}
-                </button>
+                <CopyBtn value={pubkeyB64} label="Copy Public Key" onCopy={() => void copyText(pubkeyB64)} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
@@ -441,26 +291,13 @@ export default function KeypairPage() {
                     Save this private key before continuing.
                   </p>
                 )}
-                <button
-                  type="button"
-                  onClick={() => copyText(privkeyB64, "privkey")}
-                  disabled={!privkeyB64}
-                  className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                  style={{
-                    background: copied.privkey ? "var(--color-accent-green-light)" : "transparent",
-                    border: `1.5px solid ${copied.privkey ? "var(--color-accent-green)" : "var(--border-muted)"}`,
-                    color: copied.privkey ? "var(--color-accent-green)" : "var(--fg-body)",
-                  }}
-                >
-                  {copied.privkey ? "Copied!" : "Copy Private Key"}
-                </button>
+                <CopyBtn value={privkeyB64} label="Copy Private Key" onCopy={() => void copyText(privkeyB64)} />
               </div>
               <div className="flex flex-wrap items-center justify-start gap-2">
                 <button
                   type="button"
-                  onClick={generateKeypair}
-                  disabled={busy}
-                  className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                  onClick={() => void generateKeypair()}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold"
                   style={{
                     background: "var(--home-result-primary-bg)",
                     color: "var(--home-result-primary-fg)",
@@ -502,9 +339,7 @@ export default function KeypairPage() {
                 <textarea
                   rows={2}
                   value={importPrivB64}
-                  onChange={(e) => {
-                    void handleImportPrivChange(e.target.value);
-                  }}
+                  onChange={(e) => { void handleImportPrivChange(e.target.value); }}
                   placeholder="Private key (32-byte base64)"
                   className="w-full rounded-xl px-3 py-2 text-xs font-mono"
                   style={{
@@ -541,45 +376,21 @@ export default function KeypairPage() {
                     className="w-full rounded-xl px-3 py-2 text-xs font-mono"
                     style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => copyText(pubkeyB64, "pubkey")}
-                    className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold"
-                    style={{
-                      background: copied.pubkey ? "var(--color-accent-green-light)" : "transparent",
-                      border: `1.5px solid ${copied.pubkey ? "var(--color-accent-green)" : "var(--border-muted)"}`,
-                      color: copied.pubkey ? "var(--color-accent-green)" : "var(--fg-body)",
-                    }}
-                  >
-                    {copied.pubkey ? "Copied!" : "Copy Public Key"}
-                  </button>
+                  <CopyBtn value={pubkeyB64} label="Copy Public Key" onCopy={() => void copyText(pubkeyB64)} />
                 </div>
               )}
 
               <div className="flex flex-wrap items-center justify-start gap-2">
+                {!importPrivB64.trim() && (
                 <button
                   type="button"
                   onClick={() => importFileInputRef.current?.click()}
-                  disabled={busy}
-                  className="rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-60"
+                  className="rounded-lg px-3 py-2 text-xs font-semibold"
                   style={{ background: "transparent", border: "1.5px solid var(--border-muted)", color: "var(--fg-body)" }}
                 >
                   Import Keypair JSON
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImportPrivB64("");
-                    setImportPrivError("");
-                    setSeed(null);
-                    setPubkeyB64("");
-                    setSignatureB64("");
-                  }}
-                  className="rounded-lg px-3 py-2 text-xs font-semibold"
-                  style={{ background: "transparent", border: "1.5px solid var(--border-muted)", color: "var(--fg-body)" }}
-                >
-                  Clear
-                </button>
+                )}
                 <input
                   ref={importFileInputRef}
                   type="file"
@@ -589,14 +400,11 @@ export default function KeypairPage() {
                     const file = event.target.files?.[0];
                     event.target.value = "";
                     if (!file) return;
-                    setBusy(true);
                     setError("");
                     try {
                       await handleImportJsonFile(file);
                     } catch (e) {
                       setError(e instanceof Error ? e.message : "Failed to import keypair file.");
-                    } finally {
-                      setBusy(false);
                     }
                   }}
                 />
@@ -605,7 +413,6 @@ export default function KeypairPage() {
           )}
         </div>
 
-        {/* Step 2: Sign — appears when seed is set */}
         {seed && (
           <div className="mt-4 rounded-xl border p-4" style={{ borderColor: "var(--border-muted)" }}>
             <h2 className="text-sm font-bold" style={{ color: "var(--fg-heading)" }}>
@@ -622,82 +429,30 @@ export default function KeypairPage() {
               className="mt-3 w-full rounded-xl px-3 py-2 text-xs font-mono"
               style={{
                 background: "var(--color-raised)",
-                border:
-                  payloadValidation.level === "error"
-                    ? "1px solid var(--accent-red, #e05252)"
-                    : payloadValidation.level === "warning"
-                      ? "1px solid #ca8a04"
-                      : payloadValidation.level === "valid"
-                        ? "1px solid var(--color-accent-green)"
-                        : "1px solid var(--border-muted)",
+                border: borderStyle(payloadValidation),
                 color: "var(--fg-body)",
               }}
             />
-            <p
-              className="mt-2 text-xs"
-              style={{
-                color:
-                  payloadValidation.level === "error"
-                    ? "var(--accent-red, #e05252)"
-                    : payloadValidation.level === "warning"
-                      ? "#ca8a04"
-                      : payloadValidation.level === "valid"
-                        ? "var(--color-accent-green)"
-                        : "var(--fg-muted)",
-              }}
-            >
+            <p className="mt-2 text-xs" style={{ color: msgColor(payloadValidation) }}>
               {payloadValidation.message}
             </p>
             <div className="mt-3 flex items-center gap-2">
               <button
                 type="button"
-                onClick={signPayload}
-                disabled={busy}
-                className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                onClick={() => void signPayload()}
+                className="rounded-lg px-4 py-2 text-sm font-semibold"
                 style={{
                   background: "var(--home-result-primary-bg)",
                   color: "var(--home-result-primary-fg)",
                   boxShadow: "var(--home-result-primary-shadow)",
                 }}
-              >
-                Sign Payload
-              </button>
-              <button
-                type="button"
-                onClick={pastePayloadFromClipboard}
-                disabled={busy}
-                className="rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-60"
-                style={{
-                  background: copied.payload ? "var(--color-accent-green-light)" : "transparent",
-                  border: `1.5px solid ${copied.payload ? "var(--color-accent-green)" : "var(--border-muted)"}`,
-                  color: copied.payload ? "var(--color-accent-green)" : "var(--fg-body)",
-                }}
-              >
-                {copied.payload ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-3.5 w-3.5"
-                      aria-hidden="true"
-                    >
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                    Pasted!
-                  </span>
-                ) : (
-                  "Paste Payload"
-                )}
-              </button>
-            </div>
+               >
+                 Sign Payload
+               </button>
+             </div>
           </div>
         )}
 
-        {/* Step 3: Output — appears when signature is ready */}
         {signatureB64 && (
           <div className="mt-4 rounded-xl border p-4" style={{ borderColor: "var(--border-muted)" }}>
             <h2 className="text-sm font-bold" style={{ color: "var(--fg-heading)" }}>
@@ -718,81 +473,7 @@ export default function KeypairPage() {
                 className="w-full rounded-xl px-3 py-2 text-xs font-mono"
                 style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
               />
-              <button
-                type="button"
-                onClick={() => copyText(assembledMemo, "memo")}
-                disabled={!assembledMemo}
-                className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                style={{
-                  background: copied.memo ? "var(--color-accent-green-light)" : "transparent",
-                  border: `1.5px solid ${copied.memo ? "var(--color-accent-green)" : "var(--border-muted)"}`,
-                  color: copied.memo ? "var(--color-accent-green)" : "var(--fg-body)",
-                }}
-              >
-                {copied.memo ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-3.5 w-3.5"
-                      aria-hidden="true"
-                    >
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                    Copied!
-                  </span>
-                ) : (
-                  "Copy Memo"
-                )}
-              </button>
-            </div>
-
-            <div className="mt-3 flex flex-col gap-1.5">
-              <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
-                Signature (base64)
-              </label>
-              <textarea
-                readOnly
-                rows={3}
-                value={signatureB64}
-                className="w-full rounded-xl px-3 py-2 text-xs font-mono"
-                style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
-              />
-              <button
-                type="button"
-                onClick={() => copyText(signatureB64, "signature")}
-                disabled={!signatureB64}
-                className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                style={{
-                  background: copied.signature ? "var(--color-accent-green-light)" : "transparent",
-                  border: `1.5px solid ${copied.signature ? "var(--color-accent-green)" : "var(--border-muted)"}`,
-                  color: copied.signature ? "var(--color-accent-green)" : "var(--fg-body)",
-                }}
-              >
-                {copied.signature ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-3.5 w-3.5"
-                      aria-hidden="true"
-                    >
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                    Copied!
-                  </span>
-                ) : (
-                  "Copy Signature"
-                )}
-              </button>
+              <CopyBtn value={assembledMemo} label="Copy Memo" onCopy={() => void copyText(assembledMemo)} />
             </div>
 
             <div className="mt-3 flex flex-col gap-1.5">
@@ -806,23 +487,33 @@ export default function KeypairPage() {
                 className="w-full rounded-xl px-3 py-2 text-xs font-mono"
                 style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
               />
-              <button
-                type="button"
-                onClick={() => copyText(pubkeyB64, "pubkey")}
-                disabled={!pubkeyB64}
-                className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                style={{
-                  background: copied.pubkey ? "var(--color-accent-green-light)" : "transparent",
-                  border: `1.5px solid ${copied.pubkey ? "var(--color-accent-green)" : "var(--border-muted)"}`,
-                  color: copied.pubkey ? "var(--color-accent-green)" : "var(--fg-body)",
-                }}
-              >
-                {copied.pubkey ? "Copied!" : "Copy Public Key"}
-              </button>
+                <CopyBtn value={pubkeyB64} label="Copy Public Key" onCopy={() => void copyText(pubkeyB64)} />
+            </div>
+
+            <div className="mt-3 flex flex-col gap-1.5">
+              <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
+                Signature (base64)
+              </label>
+              <textarea
+                readOnly
+                rows={3}
+                value={signatureB64}
+                className="w-full rounded-xl px-3 py-2 text-xs font-mono"
+                style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
+              />
+              <CopyBtn value={signatureB64} label="Copy Signature" onCopy={() => void copyText(signatureB64)} />
             </div>
           </div>
         )}
       </section>
     </main>
+  );
+}
+
+export default function KeypairPage() {
+  return (
+    <Suspense>
+      <KeypairPageInner />
+    </Suspense>
   );
 }
