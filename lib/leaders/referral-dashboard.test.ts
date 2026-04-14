@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildFixedDepthReferralSummaries,
   buildReferralDashboard,
   calculateReferralProjection,
   commissionRateForAttributedReferrals,
@@ -62,6 +63,47 @@ test("buildReferralDashboard protects against cycles", () => {
     dashboard.descendants.map((entry) => entry.referral_code),
     ["loop"],
   );
+});
+
+test("buildFixedDepthReferralSummaries calculates direct, indirect, and depth rewards", () => {
+  const summaries = buildFixedDepthReferralSummaries(rows);
+  const root = summaries.get("root");
+  const alpha = summaries.get("alpha");
+
+  assert.equal(root?.directReferrals, 2);
+  assert.equal(root?.indirectReferrals, 2);
+  assert.equal(root?.attributedReferrals, 4);
+  assert.equal(root?.potentialRewards, 0.1375);
+
+  assert.equal(alpha?.directReferrals, 1);
+  assert.equal(alpha?.indirectReferrals, 1);
+  assert.equal(alpha?.potentialRewards, 0.075);
+});
+
+test("buildFixedDepthReferralSummaries excludes unconfirmed chain intermediates in confirmed scope", () => {
+  const chainRows: WaitlistReferralRow[] = [
+    row("Root Chain", "root-chain", null, true),
+    row("Confirmed Direct", "confirmed-direct", "root-chain", true),
+    row("Unconfirmed Direct", "unconfirmed-direct", "root-chain", false),
+    row("Confirmed Grandchild", "confirmed-grandchild", "unconfirmed-direct", true),
+  ];
+  const summaries = buildFixedDepthReferralSummaries(chainRows, "confirmed");
+  const root = summaries.get("root-chain");
+
+  assert.equal(root?.directReferrals, 1);
+  assert.equal(root?.indirectReferrals, 0);
+  assert.equal(root?.attributedReferrals, 1);
+  assert.equal(root?.potentialRewards, 0.05);
+});
+
+test("buildFixedDepthReferralSummaries protects against cycles", () => {
+  const summaries = buildFixedDepthReferralSummaries(rows);
+  const cycle = summaries.get("cycle");
+
+  assert.equal(cycle?.directReferrals, 1);
+  assert.equal(cycle?.indirectReferrals, 0);
+  assert.equal(cycle?.attributedReferrals, 1);
+  assert.equal(cycle?.potentialRewards, 0.05);
 });
 
 test("projection helpers calculate depth rewards, commission thresholds, and length buckets", () => {

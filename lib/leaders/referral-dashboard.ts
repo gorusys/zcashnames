@@ -54,6 +54,14 @@ export interface ReferralProjection {
   }>;
 }
 
+export interface FixedDepthReferralSummary {
+  referralCode: string;
+  directReferrals: number;
+  indirectReferrals: number;
+  attributedReferrals: number;
+  potentialRewards: number;
+}
+
 export const NAME_LENGTH_BUCKETS: NameLengthBucket[] = ["1", "2", "3", "4", "5", "6", "7+"];
 
 export const DEFAULT_PRICE_BY_BUCKET: PriceByBucket = {
@@ -90,6 +98,70 @@ export function getNameLengthBucket(name: string): NameLengthBucket {
 export function fixedRewardForDepth(depth: number): number {
   if (depth <= 0) return 0;
   return 0.05 / 2 ** (depth - 1);
+}
+
+export function buildFixedDepthReferralSummaries(
+  rows: WaitlistReferralRow[],
+  scope: ReferralScope = "all",
+): Map<string, FixedDepthReferralSummary> {
+  const eligibleRows = rows.filter((row) => scope === "all" || row.email_verified);
+  const childrenByParent = new Map<string, WaitlistReferralRow[]>();
+  const candidateCodes = new Set<string>();
+
+  for (const row of eligibleRows) {
+    if (row.referral_code) candidateCodes.add(row.referral_code);
+    if (!row.referred_by) continue;
+
+    candidateCodes.add(row.referred_by);
+    const children = childrenByParent.get(row.referred_by) ?? [];
+    children.push(row);
+    childrenByParent.set(row.referred_by, children);
+  }
+
+  for (const children of childrenByParent.values()) {
+    children.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }
+
+  const summaries = new Map<string, FixedDepthReferralSummary>();
+
+  for (const referralCode of candidateCodes) {
+    const directReferrals = childrenByParent.get(referralCode)?.length ?? 0;
+    let attributedReferrals = 0;
+    let potentialRewards = 0;
+    const queue: Array<{ row: WaitlistReferralRow; depth: number; path: Set<string> }> = (
+      childrenByParent.get(referralCode) ?? []
+    ).map((row) => ({ row, depth: 1, path: new Set([referralCode]) }));
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const next = queue.shift();
+      if (!next) break;
+
+      const rowCode = next.row.referral_code;
+      if (!rowCode || visited.has(rowCode) || next.path.has(rowCode)) continue;
+      visited.add(rowCode);
+
+      attributedReferrals += 1;
+      potentialRewards += fixedRewardForDepth(next.depth);
+
+      const childPath = new Set(next.path);
+      childPath.add(rowCode);
+
+      for (const child of childrenByParent.get(rowCode) ?? []) {
+        queue.push({ row: child, depth: next.depth + 1, path: childPath });
+      }
+    }
+
+    summaries.set(referralCode, {
+      referralCode,
+      directReferrals,
+      indirectReferrals: Math.max(0, attributedReferrals - directReferrals),
+      attributedReferrals,
+      potentialRewards: roundZec(potentialRewards),
+    });
+  }
+
+  return summaries;
 }
 
 export function commissionRateForAttributedReferrals(totalAttributedReferrals: number): number {
@@ -266,4 +338,8 @@ export function calculateReferralProjection({
 
 function sanitizeNumber(value: number): number {
   return Number.isFinite(value) ? value : 0;
+}
+
+function roundZec(value: number): number {
+  return Math.round(value * 10000) / 10000;
 }

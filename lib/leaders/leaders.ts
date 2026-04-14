@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import {
+  buildFixedDepthReferralSummaries,
   buildReferralDashboard,
   type ReferralDashboardData,
   type WaitlistReferralRow,
@@ -23,6 +24,8 @@ export interface LeaderboardEntry {
   name: string;
   referral_code: string;
   referrals: number;
+  indirectReferrals: number;
+  attributedReferrals: number;
   recent: number;
   potential_rewards: number;
   streak: boolean;
@@ -59,6 +62,23 @@ export interface DailyNewNameEntry {
 }
 
 export type ReferralScope = "all" | "confirmed";
+
+function toWaitlistReferralRows(data: Record<string, unknown>[]): WaitlistReferralRow[] {
+  return data
+    .map((row) => ({
+      name: (row.name as string | null) ?? "",
+      referral_code: (row.referral_code as string | null) ?? "",
+      referred_by: (row.referred_by as string | null) ?? null,
+      created_at: row.created_at as string,
+      email_verified: Boolean(row.email_verified),
+      cabal: Boolean(row.cabal),
+    }))
+    .filter((row) => Boolean(row.referral_code));
+}
+
+function roundZec(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
 
 function resolveTopReferrer(
   dailyCounts: Record<string, number>,
@@ -117,13 +137,24 @@ export async function getWaitlistStats(
 
     const { count: referredCount } = await referredQuery;
 
-    const waitlist = waitlistCount ?? 0;
-    const referred = referredCount ?? 0;
+    const { data, error } = await db
+      .from("zn_waitlist")
+      .select("name, referral_code, referred_by, created_at, email_verified, cabal")
+      .order("created_at", { ascending: true });
+
+    if (error || !data) return { waitlist: 0, referred: 0, rewardsPot: 0 };
+
+    const rows = toWaitlistReferralRows(data);
+    const summaries = buildFixedDepthReferralSummaries(rows, scope);
+    const rewardsPot = Array.from(summaries.values()).reduce(
+      (total, summary) => total + (summary.directReferrals > 0 ? summary.potentialRewards : 0),
+      0,
+    );
 
     return {
-      waitlist,
-      referred,
-      rewardsPot: Math.round(referred * 0.05 * 1000) / 1000,
+      waitlist: waitlistCount ?? 0,
+      referred: referredCount ?? 0,
+      rewardsPot: roundZec(rewardsPot),
     };
   } catch {
     return { waitlist: 0, referred: 0, rewardsPot: 0 };
@@ -210,27 +241,19 @@ export async function getLeaderboard(
   scope: ReferralScope = "all",
 ): Promise<LeaderboardEntry[]> {
   try {
-    let referralsQuery = db
+    const { data, error } = await db
       .from("zn_waitlist")
-      .select("referred_by, created_at")
-      .not("referred_by", "is", null);
-
-    if (scope === "confirmed") {
-      referralsQuery = referralsQuery.eq("email_verified", true);
-    }
-
-    const { data, error } = await referralsQuery;
+      .select("name, referral_code, referred_by, created_at, email_verified, cabal")
+      .order("created_at", { ascending: true });
     if (error || !data) return [];
 
-    const { data: users } = await db
-      .from("zn_waitlist")
-      .select("referral_code, name")
-      .not("referral_code", "is", null);
+    const rows = toWaitlistReferralRows(data);
+    const summaries = buildFixedDepthReferralSummaries(rows, scope);
 
     const nameMap: Record<string, string> = {};
-    if (users) {
-      for (const user of users) {
-        nameMap[user.referral_code as string] = user.name as string;
+    for (const row of rows) {
+      if (row.referral_code && row.name && !nameMap[row.referral_code]) {
+        nameMap[row.referral_code] = row.name;
       }
     }
 
@@ -244,13 +267,16 @@ export async function getLeaderboard(
     const todayCounts: Record<string, number> = {};
     const yesterdayCounts: Record<string, number> = {};
 
-    for (const row of data) {
-      const code = row.referred_by as string;
-      const date = (row.created_at as string).slice(0, 10);
+    for (const row of rows) {
+      if (!row.referred_by) continue;
+      if (scope === "confirmed" && !row.email_verified) continue;
+
+      const code = row.referred_by;
+      const date = row.created_at.slice(0, 10);
 
       counts[code] = (counts[code] || 0) + 1;
 
-      if (new Date(row.created_at as string).getTime() >= cutoff) {
+      if (new Date(row.created_at).getTime() >= cutoff) {
         recentCounts[code] = (recentCounts[code] || 0) + 1;
       }
 
@@ -264,17 +290,31 @@ export async function getLeaderboard(
     const topRecentCode = Object.entries(recentCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null;
 
     return Object.entries(counts)
-      .sort(([, a], [, b]) => b - a)
-      .map(([referral_code, referrals], i) => ({
-        rank: i + 1,
-        name: nameMap[referral_code] || referral_code,
-        referral_code,
-        referrals,
-        recent: recentCounts[referral_code] || 0,
-        potential_rewards: Math.round(referrals * 0.05 * 1000) / 1000,
-        streak: referral_code === streakCode,
-        topRecent: referral_code === topRecentCode && referral_code !== streakCode,
-      }));
+      .map(([referral_code, referrals]) => {
+        const summary = summaries.get(referral_code);
+        const indirectReferrals = summary?.indirectReferrals ?? 0;
+        const displayedReferrals = referrals + indirectReferrals;
+
+        return {
+          name: nameMap[referral_code] || referral_code,
+          referral_code,
+          referrals,
+          indirectReferrals,
+          attributedReferrals: displayedReferrals,
+          recent: recentCounts[referral_code] || 0,
+          potential_rewards: summary?.potentialRewards ?? roundZec(referrals * 0.05),
+          streak: referral_code === streakCode,
+          topRecent: referral_code === topRecentCode && referral_code !== streakCode,
+        };
+      })
+      .sort((a, b) => {
+        if (b.attributedReferrals !== a.attributedReferrals) {
+          return b.attributedReferrals - a.attributedReferrals;
+        }
+        if (b.referrals !== a.referrals) return b.referrals - a.referrals;
+        return a.referral_code.localeCompare(b.referral_code);
+      })
+      .map((entry, i) => ({ ...entry, rank: i + 1 }));
   } catch {
     return [];
   }
@@ -427,16 +467,7 @@ export async function getReferralDashboard(
 
     if (error || !data) return null;
 
-    const rows: WaitlistReferralRow[] = data
-      .map((row) => ({
-        name: (row.name as string | null) ?? "",
-        referral_code: (row.referral_code as string | null) ?? "",
-        referred_by: (row.referred_by as string | null) ?? null,
-        created_at: row.created_at as string,
-        email_verified: Boolean(row.email_verified),
-        cabal: Boolean(row.cabal),
-      }))
-      .filter((row) => Boolean(row.referral_code));
+    const rows = toWaitlistReferralRows(data);
 
     return buildReferralDashboard(normalizedCode, rows, scope);
   } catch {

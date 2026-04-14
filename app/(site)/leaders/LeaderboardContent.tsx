@@ -118,7 +118,10 @@ function ChartTooltip({
     >
       <p className="mb-1.5 font-semibold text-fg-heading">{label}</p>
       <p>
-        Total: <span className="font-semibold text-fg-heading">{totalVal}</span>
+        Total:{" "}
+        <span className="font-semibold" style={{ color: "var(--leaders-area-non-referred)" }}>
+          {totalVal}
+        </span>
         {formatDelta(point?.totalDelta)}
       </p>
       <p>
@@ -127,13 +130,6 @@ function ChartTooltip({
           {referred?.value ?? 0}
         </span>
         {formatDelta(point?.referredDelta)}
-      </p>
-      <p>
-        Non-referred:{" "}
-        <span className="font-semibold" style={{ color: "var(--leaders-area-non-referred)" }}>
-          {total?.value ?? 0}
-        </span>
-        {formatDelta(point?.nonReferredDelta)}
       </p>
       {topReferrer && (
         <p className="mt-2 text-[0.78rem] text-fg-muted">
@@ -187,6 +183,7 @@ export default function LeaderboardContent() {
   const [dailyRows, setDailyRows] = useState<DailyRow[]>([]);
   const [rankingsMode, setRankingsMode] = useState<"daily" | "allTime">("daily");
   const [referralScope, setReferralScope] = useState<ReferralScope>("all");
+  const [visibleLeaderboardRows, setVisibleLeaderboardRows] = useState(10);
   const [visibleDailyRows, setVisibleDailyRows] = useState(7);
   const [stats, setStats] = useState({ waitlist: 0, referred: 0, rewardsPot: 0 });
   const [loading, setLoading] = useState(true);
@@ -202,9 +199,16 @@ export default function LeaderboardContent() {
     [filteredDailyRows, visibleDailyRows],
   );
 
+  const visibleLeaderboard = useMemo(
+    () => leaderboard.slice(0, visibleLeaderboardRows),
+    [leaderboard, visibleLeaderboardRows],
+  );
+
+  const canShowMoreLeaderboardRows = visibleLeaderboardRows < leaderboard.length;
+  const canHideLeaderboardRows = visibleLeaderboardRows > 10;
+
   const canShowMoreRows = visibleDailyRows < filteredDailyRows.length;
   const canHideRows = visibleDailyRows > 7;
-  const rowButtonLabel = canShowMoreRows ? "Show 7 more" : "Hide 7 rows";
 
   const dailyTopBadgeByKey = useMemo(() => {
     const badges = new Map<string, "red" | "blue">();
@@ -265,6 +269,10 @@ export default function LeaderboardContent() {
   useEffect(() => {
     setVisibleDailyRows(7);
   }, [filteredDailyRows.length]);
+
+  useEffect(() => {
+    setVisibleLeaderboardRows(10);
+  }, [leaderboard.length, referralScope]);
 
   return (
     <>
@@ -397,7 +405,7 @@ export default function LeaderboardContent() {
                 <Skeleton />
               ) : (
                 <>
-                  <ZecSymbol className="mr-0.5 inline-block" /> {stats.rewardsPot}
+                  <ZecSymbol className="mr-0.5 inline-block" /> {formatZec(stats.rewardsPot)}
                 </>
               )
             }
@@ -421,7 +429,7 @@ export default function LeaderboardContent() {
           >
             {activeStatKey === "waitlist" && "Total number of people on the ZcashNames waitlist."}
             {activeStatKey === "referred" && "Number of waitlist members who were referred by someone."}
-            {activeStatKey === "rewards" && "Get 0.05 ZEC for every name sold using your waitlist referral link."}
+            {activeStatKey === "rewards" && "Earn 0.05 ZEC when a direct referral buys a name; each indirect level earns half the level before it."}
           </p>
         </div>
       </section>
@@ -433,9 +441,13 @@ export default function LeaderboardContent() {
           borderColor: "var(--leaders-card-border)",
         }}
       >
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
+        <div
+          className="overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
+          style={{ maxHeight: `${86 + Math.max(1, visibleLeaderboard.length) * 58}px` }}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
               <tr
                 className="border-b text-[0.74rem] font-semibold uppercase tracking-[0.08em] text-fg-muted"
                 style={{ borderColor: "var(--leaders-card-border)" }}
@@ -443,14 +455,13 @@ export default function LeaderboardContent() {
                 <th className="px-4 py-3 sm:px-6">Rank</th>
                 <th className="px-4 py-3 sm:px-6">ZcashName</th>
                 <th className="px-4 py-3 text-right sm:px-6">
-                  <span className="sm:hidden">Refers</span>
-                  <span className="hidden sm:inline">Referrals</span>
+                  <span className="inline-block w-[10ch] text-center">Refs</span>
                 </th>
                 <th className="px-4 py-3 text-right sm:px-6">24h</th>
                 <th className="px-4 py-3 text-right sm:px-6">Rewards</th>
               </tr>
-            </thead>
-            <tbody>
+              </thead>
+              <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr
@@ -482,7 +493,7 @@ export default function LeaderboardContent() {
                   </td>
                 </tr>
               ) : (
-                leaderboard.map((entry) => (
+                visibleLeaderboard.map((entry) => (
                   <tr
                     key={entry.referral_code}
                     className="border-b last:border-b-0 transition-colors"
@@ -556,21 +567,59 @@ export default function LeaderboardContent() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-fg-heading sm:px-6">
-                      {entry.referrals}
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums sm:px-6">
+                      <span className="inline-grid grid-cols-[5ch_1ch_4ch] items-baseline justify-end whitespace-nowrap">
+                        <span className="text-right font-semibold text-fg-heading">{entry.referrals}</span>
+                        <span className="text-center text-[0.78em] font-medium text-fg-muted">/</span>
+                        <span className="text-left text-[0.78em] font-medium text-fg-muted">
+                          {entry.indirectReferrals}
+                        </span>
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-fg-muted sm:px-6">
                       {entry.recent > 0 ? `+${entry.recent}` : "\u2014"}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-fg-body sm:px-6">
-                      <ZecSymbol className="mr-0.5 inline-block" /> {entry.potential_rewards}
+                      <ZecSymbol className="mr-0.5 inline-block" /> {formatZec(entry.potential_rewards)}
                     </td>
                   </tr>
                 ))
               )}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
+        {leaderboard.length > 10 && (
+          <div
+            className="flex items-center justify-between gap-3 border-t px-5 py-3"
+            style={{ borderColor: "var(--leaders-card-border)" }}
+          >
+            {canShowMoreLeaderboardRows ? (
+              <button
+                type="button"
+                className="cursor-pointer text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg-heading"
+                onClick={() => {
+                  setVisibleLeaderboardRows((current) => Math.min(current + 10, leaderboard.length));
+                }}
+              >
+                Show 10 more
+              </button>
+            ) : (
+              <span aria-hidden="true" />
+            )}
+            {canHideLeaderboardRows && (
+              <button
+                type="button"
+                className="ml-auto cursor-pointer text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg-heading"
+                onClick={() => {
+                  setVisibleLeaderboardRows((current) => Math.max(10, current - 10));
+                }}
+              >
+                Show 10 less
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       <section
@@ -618,9 +667,16 @@ export default function LeaderboardContent() {
           </div>
         </div>
 
-        <div className="overflow-x-auto border-t" style={{ borderColor: "var(--leaders-card-border)" }}>
-          <table className="w-full min-w-[620px] text-left text-sm">
-            <thead>
+        <div
+          className="overflow-hidden border-t transition-[max-height,opacity] duration-300 ease-out"
+          style={{
+            borderColor: "var(--leaders-card-border)",
+            maxHeight: `${78 + Math.max(1, visibleRows.length) * 76}px`,
+          }}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px] text-left text-sm">
+              <thead>
               <tr
                 className="border-b text-[0.74rem] font-semibold uppercase tracking-[0.08em] text-fg-muted"
                 style={{ borderColor: "var(--leaders-card-border)" }}
@@ -630,8 +686,8 @@ export default function LeaderboardContent() {
                 <th className="px-4 py-2.5 text-left sm:px-6">2nd</th>
                 <th className="px-4 py-2.5 text-left sm:px-6">3rd</th>
               </tr>
-            </thead>
-            <tbody>
+              </thead>
+              <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr
@@ -686,27 +742,40 @@ export default function LeaderboardContent() {
                   </tr>
                 ))
               )}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {filteredDailyRows.length > 7 && (
-          <div className="border-t px-5 py-3" style={{ borderColor: "var(--leaders-card-border)" }}>
-            <button
-              type="button"
-              className="cursor-pointer text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg-heading"
-              onClick={() => {
-                setVisibleDailyRows((current) => {
-                  if (current < filteredDailyRows.length) {
-                    return Math.min(current + 7, filteredDailyRows.length);
-                  }
-                  return Math.max(7, current - 7);
-                });
-              }}
-              disabled={!canShowMoreRows && !canHideRows}
-            >
-              {rowButtonLabel}
-            </button>
+          <div
+            className="flex items-center justify-between gap-3 border-t px-5 py-3"
+            style={{ borderColor: "var(--leaders-card-border)" }}
+          >
+            {canShowMoreRows ? (
+              <button
+                type="button"
+                className="cursor-pointer text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg-heading"
+                onClick={() => {
+                  setVisibleDailyRows((current) => Math.min(current + 7, filteredDailyRows.length));
+                }}
+              >
+                Show 7 more
+              </button>
+            ) : (
+              <span aria-hidden="true" />
+            )}
+            {canHideRows && (
+              <button
+                type="button"
+                className="ml-auto cursor-pointer text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg-heading"
+                onClick={() => {
+                  setVisibleDailyRows((current) => Math.max(7, current - 7));
+                }}
+              >
+                Show 7 less
+              </button>
+            )}
           </div>
         )}
       </section>
@@ -719,7 +788,7 @@ export default function LeaderboardContent() {
 const HOW_IT_WORKS: { title: string; body: ReactNode }[] = [
   {
     title: "Referrals",
-    body: "After you join the waitlist, you'll receive a personal referral link to share. When someone joins through your link, it counts toward your total and helps move you up the leaderboard.",
+    body: "After you join the waitlist, you'll receive a personal referral link to share. Direct referrals and the indirect referrals below them count toward your leaderboard rank.",
   },
   {
     title: "Ranking",
@@ -745,8 +814,9 @@ const HOW_IT_WORKS: { title: string; body: ReactNode }[] = [
     title: "Rewards",
     body: (
       <>
-        Each referral is worth <strong>0.05 ZEC</strong>, but rewards are only earned when your
-        referrals complete a purchase during early access. Until then, rewards shown are potential.
+        Direct referral purchases earn <strong>0.05 ZEC</strong>. Indirect levels are attributed too,
+        with each level earning half the level before it. Until purchases complete during early
+        access, rewards shown are potential.
       </>
     ),
   },
@@ -875,6 +945,14 @@ function isNextDay(previousDate: string, nextDate: string): boolean {
 
 function formatPayout(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+function formatZec(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  if (value >= 100) return value.toFixed(0);
+  if (value >= 10) return value.toFixed(1);
+  if (value >= 1) return value.toFixed(2);
+  return value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function Skeleton({ w = "w-12" }: { w?: string }) {
