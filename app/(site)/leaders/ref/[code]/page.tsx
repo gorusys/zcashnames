@@ -323,13 +323,13 @@ export default function ReferralDashboardPage() {
             style={{ maxHeight: `${Math.max(150, 58 + Math.max(1, visibleReferralTableRows.length) * 42)}px` }}
           >
             <div className="max-w-full overflow-x-auto">
-              <table className="w-full min-w-[460px] text-left text-sm">
+              <table className="w-full min-w-[420px] text-left text-sm">
                 <thead>
                   <tr className="border-b text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
                     <th className="py-2 pr-3">Lvl</th>
                     <th className="px-3 py-2">ZcashName</th>
-                    <th className="px-3 py-2">Joined</th>
-                    <th className="py-2 pl-3 text-right">Refs</th>
+                    <th className="w-[6.5rem] px-2 py-2">Joined</th>
+                    <th className="w-[3.5rem] px-2 py-2 text-right">Refs</th>
                     <th className="py-2 pl-3 text-right">Reward</th>
                   </tr>
                 </thead>
@@ -347,8 +347,8 @@ export default function ReferralDashboardPage() {
                             {entry.name}
                           </Link>
                         </td>
-                        <td className="px-3 py-2 text-fg-body">{formatDate(entry.created_at)}</td>
-                        <td className="py-2 pl-3 text-right font-semibold tabular-nums text-fg-heading">{entry.initiated_referrals}</td>
+                        <td className="w-[6.5rem] whitespace-nowrap px-2 py-2 text-fg-body">{formatDate(entry.created_at)}</td>
+                        <td className="w-[3.5rem] px-2 py-2 text-right font-semibold tabular-nums text-fg-heading">{entry.initiated_referrals}</td>
                         <td className="py-2 pl-3 text-right font-semibold tabular-nums text-fg-heading">
                           <ZecSymbol className="mr-0.5 inline-block" /> {formatZec(projectedReferralPayout(entry.name, entry.depth))}
                         </td>
@@ -490,12 +490,12 @@ function ReferralGrowthChart({ data }: { data: ReferralChartPoint[] }) {
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 text-sm font-semibold text-fg-heading">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: DIRECT_CHART_COLOR }} />
-            Direct
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: INDIRECT_CHART_COLOR }} />
+            Referrals
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: INDIRECT_CHART_COLOR }} />
-            Indirect
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: DIRECT_CHART_COLOR }} />
+            Direct
           </span>
         </div>
         <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-fg-heading">
@@ -586,8 +586,8 @@ function ReferralChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
 
-  const direct = payload.find((p) => p.name === "direct");
   const indirect = payload.find((p) => p.name === "indirect");
+  const direct = payload.find((p) => p.name === "direct");
   const rewards = payload.find((p) => p.name === "rewards");
   const point = payload[0]?.payload;
 
@@ -602,18 +602,18 @@ function ReferralChartTooltip({
     >
       <p className="mb-1.5 font-semibold text-fg-heading">{label}</p>
       <p>
+        Referrals:{" "}
+        <span className="font-semibold" style={{ color: INDIRECT_CHART_COLOR }}>
+          {indirect?.value ?? 0}
+        </span>
+        {formatCountDelta(point?.indirectDelta)}
+      </p>
+      <p>
         Direct:{" "}
         <span className="font-semibold" style={{ color: DIRECT_CHART_COLOR }}>
           {direct?.value ?? 0}
         </span>
         {formatCountDelta(point?.directDelta)}
-      </p>
-      <p>
-        Indirect:{" "}
-        <span className="font-semibold" style={{ color: INDIRECT_CHART_COLOR }}>
-          {indirect?.value ?? 0}
-        </span>
-        {formatCountDelta(point?.indirectDelta)}
       </p>
       <p>
         Rewards:{" "}
@@ -738,7 +738,7 @@ function RewardSchedule({
       {model === "fixed" ? (
         <div className="mt-5 max-w-full overflow-x-auto">
           <div className="grid min-w-[460px] gap-3">
-            <div className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-right text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
+            <div className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-center text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
               <span className="text-left">Lvl</span>
               <span>Refs</span>
               <span>24h</span>

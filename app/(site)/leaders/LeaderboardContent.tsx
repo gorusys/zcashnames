@@ -347,12 +347,12 @@ export default function LeaderboardContent() {
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-sm font-semibold text-fg-heading">
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--leaders-area-referred)" }} />
-              Referred
-            </span>
-            <span className="inline-flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--leaders-area-non-referred)" }} />
               Waitlist
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--leaders-area-referred)" }} />
+              Referred
             </span>
           </div>
           <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-fg-heading">
