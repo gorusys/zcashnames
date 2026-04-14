@@ -180,8 +180,9 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
             ? (() => {
                 const sig = input.sovereignSignature?.trim();
                 if (!sig) throw new Error("Signature is required for sovereign update.");
+                const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
                 const nonce = (reg?.nonce ?? 0) + 1;
-                return buildUpdateMemo(name, address, nonce, sig);
+                return `${buildUpdateMemo(name, address, nonce, sig)}:${pub}`;
               })()
             : (await buildSignedUpdateMemo(name, address, network)).memo;
         return {
@@ -201,8 +202,9 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
             ? (() => {
                 const sig = input.sovereignSignature?.trim();
                 if (!sig) throw new Error("Signature is required for sovereign list.");
+                const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
                 const nonce = (reg?.nonce ?? 0) + 1;
-                return buildListMemo(name, input.priceZats!, nonce, sig);
+                return `${buildListMemo(name, input.priceZats!, nonce, sig)}:${pub}`;
               })()
             : (await buildSignedListMemo(name, input.priceZats, network)).memo;
         return {
@@ -218,8 +220,9 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
             ? (() => {
                 const sig = input.sovereignSignature?.trim();
                 if (!sig) throw new Error("Signature is required for sovereign delist.");
+                const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
                 const nonce = (reg?.nonce ?? 0) + 1;
-                return buildDelistMemo(name, nonce, sig);
+                return `${buildDelistMemo(name, nonce, sig)}:${pub}`;
               })()
             : (await buildSignedDelistMemo(name, network)).memo;
         return {
@@ -235,8 +238,9 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
             ? (() => {
                 const sig = input.sovereignSignature?.trim();
                 if (!sig) throw new Error("Signature is required for sovereign release.");
+                const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
                 const nonce = (reg?.nonce ?? 0) + 1;
-                return buildReleaseMemo(name, nonce, sig);
+                return `${buildReleaseMemo(name, nonce, sig)}:${pub}`;
               })()
             : (await buildSignedReleaseMemo(name, network)).memo;
         return {

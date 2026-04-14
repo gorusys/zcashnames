@@ -1,5 +1,6 @@
 "use client";
 
+import { getPublicKeyAsync, signAsync } from "@noble/ed25519";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isValidUsername, validateAddress } from "@/lib/zns/name";
 
@@ -34,10 +35,6 @@ function tryBase64ToBytes(value: string): Uint8Array | null {
   } catch {
     return null;
   }
-}
-
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 function isWholeNumber(value: string): boolean {
@@ -133,7 +130,7 @@ function validatePayload(payload: string): PayloadValidation {
     default:
       return {
         level: "warning",
-        message: "Unrecognized action format. You can still sign, but your transaction may not be interpretted correctly.",
+        message: "Unrecognized action format. You can still sign, but your transaction may not be interpreted correctly.",
       };
   }
 }
@@ -149,15 +146,13 @@ export default function KeypairPage() {
   const [payload, setPayload] = useState("");
   const [signatureB64, setSignatureB64] = useState("");
 
-  const [activeKeypair, setActiveKeypair] = useState<CryptoKeyPair | null>(null);
+  const [activeSeed, setActiveSeed] = useState<Uint8Array | null>(null);
   const [activeSource, setActiveSource] = useState<Source>(null);
   const [publicKeyB64, setPublicKeyB64] = useState("");
   const [privateKeyB64, setPrivateKeyB64] = useState("");
   const [exportLabel, setExportLabel] = useState("");
 
-  const [importPubB64, setImportPubB64] = useState("");
   const [importPrivB64, setImportPrivB64] = useState("");
-  const [importPubError, setImportPubError] = useState("");
   const [importPrivError, setImportPrivError] = useState("");
 
   const [copied, setCopied] = useState<Record<CopyField, boolean>>({
@@ -169,10 +164,6 @@ export default function KeypairPage() {
   const [step1Open, setStep1Open] = useState(true);
   const [step2Open, setStep2Open] = useState(false);
   const [step3Open, setStep3Open] = useState(false);
-  const subtleAvailable = useMemo(
-    () => typeof window !== "undefined" && !!window.crypto?.subtle,
-    [],
-  );
 
   useEffect(() => {
     const initialPayload = new URLSearchParams(window.location.search).get("payload");
@@ -180,75 +171,59 @@ export default function KeypairPage() {
     setReady(true);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const value = importPubB64.trim();
-    if (!value) {
-      setImportPubError("");
-      return;
+  async function generateKeypair() {
+    setBusy(true);
+    setError("");
+    try {
+      const seed = crypto.getRandomValues(new Uint8Array(32));
+      const pubBytes = await getPublicKeyAsync(seed);
+      setActiveSeed(seed);
+      setActiveSource("generated");
+      setPublicKeyB64(bytesToBase64(pubBytes));
+      setPrivateKeyB64(bytesToBase64(seed));
+      setSignatureB64("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate keypair.");
+    } finally {
+      setBusy(false);
     }
-    if (!subtleAvailable) {
-      setImportPubError("WebCrypto is unavailable in this browser.");
-      return;
-    }
-    (async () => {
-      const bytes = tryBase64ToBytes(value);
-      if (!bytes) {
-        if (!cancelled) setImportPubError("Public key must be valid base64.");
-        return;
-      }
-      if (bytes.length !== 32) {
-        if (!cancelled) setImportPubError("Public key must decode to 32 bytes.");
-        return;
-      }
-      try {
-        await window.crypto.subtle.importKey("raw", toArrayBuffer(bytes), { name: "Ed25519" }, false, ["verify"]);
-        if (!cancelled) setImportPubError("");
-      } catch {
-        if (!cancelled) setImportPubError("Public key is not a valid Ed25519 key.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [importPubB64, subtleAvailable]);
+  }
 
-  useEffect(() => {
-    let cancelled = false;
-    const value = importPrivB64.trim();
-    if (!value) {
+  async function activateImportedSeed(seedBytes: Uint8Array) {
+    const pubBytes = await getPublicKeyAsync(seedBytes);
+    setActiveSeed(seedBytes);
+    setActiveSource("imported");
+    setPublicKeyB64(bytesToBase64(pubBytes));
+    setSignatureB64("");
+  }
+
+  async function handleImportPrivChange(value: string) {
+    setImportPrivB64(value);
+    const trimmed = value.trim();
+    if (!trimmed) {
       setImportPrivError("");
+      setActiveSeed(null);
+      setActiveSource(null);
+      setPublicKeyB64("");
       return;
     }
-    if (!subtleAvailable) {
-      setImportPrivError("WebCrypto is unavailable in this browser.");
+    const bytes = tryBase64ToBytes(trimmed);
+    if (!bytes || bytes.length !== 32) {
+      setImportPrivError(bytes ? "Key must decode to exactly 32 bytes." : "Invalid base64.");
+      setActiveSeed(null);
+      setActiveSource(null);
+      setPublicKeyB64("");
       return;
     }
-    (async () => {
-      const bytes = tryBase64ToBytes(value);
-      if (!bytes) {
-        if (!cancelled) setImportPrivError("Private key must be valid base64.");
-        return;
-      }
-      try {
-        await window.crypto.subtle.importKey("pkcs8", toArrayBuffer(bytes), { name: "Ed25519" }, false, ["sign"]);
-        if (!cancelled) setImportPrivError("");
-      } catch {
-        if (!cancelled) setImportPrivError("Private key must be a valid Ed25519 PKCS8 key.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [importPrivB64, subtleAvailable]);
-
-  async function syncKeyDisplay(pair: CryptoKeyPair) {
-    const [pubRaw, privPkcs8] = await Promise.all([
-      window.crypto.subtle.exportKey("raw", pair.publicKey),
-      window.crypto.subtle.exportKey("pkcs8", pair.privateKey),
-    ]);
-    setPublicKeyB64(bytesToBase64(pubRaw));
-    setPrivateKeyB64(bytesToBase64(privPkcs8));
+    setImportPrivError("");
+    try {
+      await activateImportedSeed(bytes);
+    } catch {
+      setImportPrivError("Invalid Ed25519 key.");
+      setActiveSeed(null);
+      setActiveSource(null);
+      setPublicKeyB64("");
+    }
   }
 
   function markCopied(field: CopyField) {
@@ -282,81 +257,20 @@ export default function KeypairPage() {
     }
   }
 
-  async function generateKeypair() {
-    if (!subtleAvailable) {
-      setError("WebCrypto is unavailable in this browser.");
-      return;
-    }
-
-    setBusy(true);
-    setError("");
-    try {
-      const pair = (await window.crypto.subtle.generateKey(
-        { name: "Ed25519" },
-        true,
-        ["sign", "verify"],
-      )) as CryptoKeyPair;
-      setActiveKeypair(pair);
-      setActiveSource("generated");
-      await syncKeyDisplay(pair);
-      setSignatureB64("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate keypair.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function importKeypairValues(pubValue: string, privValue: string) {
-    const trimmedPub = pubValue.trim();
-    const trimmedPriv = privValue.trim();
-    if (!trimmedPub || !trimmedPriv) {
-      throw new Error("Paste both public and private keys to import.");
-    }
-
-    const pub = await window.crypto.subtle.importKey(
-      "raw",
-      toArrayBuffer(base64ToBytes(trimmedPub)),
-      { name: "Ed25519" },
-      true,
-      ["verify"],
-    );
-    const priv = await window.crypto.subtle.importKey(
-      "pkcs8",
-      toArrayBuffer(base64ToBytes(trimmedPriv)),
-      { name: "Ed25519" },
-      true,
-      ["sign"],
-    );
-    const pair = { publicKey: pub, privateKey: priv } as CryptoKeyPair;
-    setImportPubB64(trimmedPub);
-    setImportPrivB64(trimmedPriv);
-    setActiveKeypair(pair);
-    setActiveSource("imported");
-    setPublicKeyB64(trimmedPub);
-    setPrivateKeyB64(trimmedPriv);
-    return pair;
-  }
-
   async function signPayload() {
-    if (!subtleAvailable) {
-      setError("WebCrypto is unavailable in this browser.");
-      return;
-    }
     if (!payload.trim()) {
       setError("Payload is required.");
       return;
     }
-
+    if (!activeSeed) {
+      setError("Complete Step 1 and use a keypair first.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      const pair: CryptoKeyPair | null = activeKeypair;
-      if (!pair?.privateKey) {
-        throw new Error("Complete Step 1 and use a keypair first.");
-      }
-      const data = new TextEncoder().encode(payload);
-      const sig = await window.crypto.subtle.sign("Ed25519", pair.privateKey, data);
+      const data = new TextEncoder().encode(payload.trim());
+      const sig = await signAsync(data, activeSeed);
       setSignatureB64(bytesToBase64(sig));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to sign payload.");
@@ -367,20 +281,18 @@ export default function KeypairPage() {
 
   async function handleImportJsonFile(file: File) {
     const text = await file.text();
-    const parsed = JSON.parse(text) as {
-      pubkey?: unknown;
-      privkey_pkcs8?: unknown;
-    };
-    if (typeof parsed.pubkey !== "string" || typeof parsed.privkey_pkcs8 !== "string") {
-      throw new Error("Invalid keypair file. Expected pubkey and privkey_pkcs8.");
+    const parsed = JSON.parse(text) as { privkey?: unknown };
+    if (typeof parsed.privkey !== "string") {
+      throw new Error("Invalid keypair file. Expected privkey.");
     }
-    setImportPubB64(parsed.pubkey.trim());
-    setImportPrivB64(parsed.privkey_pkcs8.trim());
-    if (activeSource === "imported") {
-      setActiveKeypair(null);
-      setActiveSource(null);
+    const seedStr = parsed.privkey.trim();
+    const bytes = tryBase64ToBytes(seedStr);
+    if (!bytes || bytes.length !== 32) {
+      throw new Error("Invalid privkey: must be 32-byte base64.");
     }
-    setSignatureB64("");
+    setImportPrivB64(seedStr);
+    setImportPrivError("");
+    await activateImportedSeed(bytes);
   }
 
   function exportKeypair() {
@@ -391,7 +303,7 @@ export default function KeypairPage() {
     setError("");
     const data = {
       pubkey: publicKeyB64,
-      privkey_pkcs8: privateKeyB64,
+      privkey: privateKeyB64,
       timestamp: new Date().toISOString(),
       label: exportLabel.trim() || null,
     };
@@ -406,13 +318,11 @@ export default function KeypairPage() {
 
   const hasGeneratedKey =
     activeSource === "generated" && !!publicKeyB64.trim() && !!privateKeyB64.trim();
-  const canUseImportedKeypair =
-    !!importPubB64.trim() && !!importPrivB64.trim() && !importPubError && !importPrivError;
-  const canSign = !!activeKeypair;
+  const canSign = !!activeSeed;
   const step1Complete = hasGeneratedKey || activeSource === "imported";
   const step2Complete = !!signatureB64.trim();
   const step3Complete = !!signatureB64.trim();
-  const step3PublicKey = publicKeyB64.trim() || importPubB64.trim();
+  const step3PublicKey = publicKeyB64.trim();
   const payloadValidation = useMemo(() => validatePayload(payload), [payload]);
   const activeSourceSentence =
     activeSource === "generated"
@@ -461,11 +371,6 @@ export default function KeypairPage() {
         <p className="mt-2 text-sm" style={{ color: "var(--fg-body)" }}>
           Generate or import an Ed25519 keypair, then sign the payload.
         </p>
-        {!subtleAvailable && (
-          <p className="mt-4 text-sm font-semibold" style={{ color: "var(--accent-red, #e05252)" }}>
-            WebCrypto Ed25519 is unavailable in this browser.
-          </p>
-        )}
 
         {error && (
           <p className="mt-4 text-sm font-semibold" style={{ color: "var(--accent-red, #e05252)" }}>
@@ -538,7 +443,7 @@ export default function KeypairPage() {
                       readOnly
                       rows={2}
                       value={publicKeyB64}
-                      placeholder="Public key (base64 raw)"
+                      placeholder="Public key (base64)"
                       className="w-full rounded-xl px-3 py-2 text-xs font-mono"
                       style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
                     />
@@ -558,13 +463,13 @@ export default function KeypairPage() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
-                      Private Key PKCS8 (base64)
+                      Private Key (base64)
                     </label>
                     <textarea
                       readOnly
-                      rows={3}
+                      rows={2}
                       value={privateKeyB64}
-                      placeholder="Private key PKCS8 (base64)"
+                      placeholder="Private key (base64)"
                       className="w-full rounded-xl px-3 py-2 text-xs font-mono"
                       style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
                     />
@@ -573,7 +478,7 @@ export default function KeypairPage() {
                     <button
                       type="button"
                       onClick={generateKeypair}
-                      disabled={!subtleAvailable || busy}
+                      disabled={busy}
                       className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
                       style={{
                         background: "var(--home-result-primary-bg)",
@@ -611,67 +516,23 @@ export default function KeypairPage() {
                 <div className="mt-4 grid gap-3">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
-                      Public Key (base64)
+                      Private Key (base64)
                     </label>
                     <textarea
                       rows={2}
-                      value={importPubB64}
-                      onChange={(e) => {
-                        setImportPubB64(e.target.value);
-                        if (activeSource === "imported") {
-                          setActiveKeypair(null);
-                          setActiveSource(null);
-                        }
-                      }}
-                      placeholder="Public key (base64 raw)"
-                      className="w-full rounded-xl px-3 py-2 text-xs font-mono"
-                      style={{
-                        background: "var(--color-raised)",
-                        border: `1px solid ${!importPubB64.trim() ? "var(--border-muted)" : importPubError ? "var(--accent-red, #e05252)" : "var(--color-accent-green)"}`,
-                        color: "var(--fg-body)",
-                      }}
-                    />
-                    {importPubB64.trim() && (
-                      <p
-                        className="text-xs"
-                        style={{ color: importPubError ? "var(--accent-red, #e05252)" : "var(--color-accent-green)" }}
-                      >
-                        {importPubError || "Valid Ed25519 public key."}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => copyText(importPubB64, "pubkey")}
-                      disabled={!importPubB64.trim()}
-                      className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                      style={{
-                        background: copied.pubkey ? "var(--color-accent-green-light)" : "transparent",
-                        border: `1.5px solid ${copied.pubkey ? "var(--color-accent-green)" : "var(--border-muted)"}`,
-                        color: copied.pubkey ? "var(--color-accent-green)" : "var(--fg-body)",
-                      }}
-                    >
-                      {copied.pubkey ? "Copied!" : "Copy Public Key"}
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
-                      Private Key PKCS8 (base64)
-                    </label>
-                    <textarea
-                      rows={3}
                       value={importPrivB64}
-                      onChange={(e) => {
-                        setImportPrivB64(e.target.value);
-                        if (activeSource === "imported") {
-                          setActiveKeypair(null);
-                          setActiveSource(null);
-                        }
-                      }}
-                      placeholder="Private key PKCS8 (base64)"
+                      onChange={(e) => { void handleImportPrivChange(e.target.value); }}
+                      placeholder="Private key (32-byte base64)"
                       className="w-full rounded-xl px-3 py-2 text-xs font-mono"
                       style={{
                         background: "var(--color-raised)",
-                        border: `1px solid ${!importPrivB64.trim() ? "var(--border-muted)" : importPrivError ? "var(--accent-red, #e05252)" : "var(--color-accent-green)"}`,
+                        border: `1px solid ${
+                          !importPrivB64.trim()
+                            ? "var(--border-muted)"
+                            : importPrivError
+                              ? "var(--accent-red, #e05252)"
+                              : "var(--color-accent-green)"
+                        }`,
                         color: "var(--fg-body)",
                       }}
                     />
@@ -680,39 +541,43 @@ export default function KeypairPage() {
                         className="text-xs"
                         style={{ color: importPrivError ? "var(--accent-red, #e05252)" : "var(--color-accent-green)" }}
                       >
-                        {importPrivError || "Valid Ed25519 private key."}
+                        {importPrivError || "Valid Ed25519 key."}
                       </p>
                     )}
                   </div>
+
+                  {activeSource === "imported" && publicKeyB64 && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
+                        Public Key (derived)
+                      </label>
+                      <textarea
+                        readOnly
+                        rows={2}
+                        value={publicKeyB64}
+                        className="w-full rounded-xl px-3 py-2 text-xs font-mono"
+                        style={{ background: "var(--color-raised)", border: "1px solid var(--border-muted)", color: "var(--fg-body)" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => copyText(publicKeyB64, "pubkey")}
+                        className="self-start rounded-lg px-3 py-1.5 text-xs font-semibold"
+                        style={{
+                          background: copied.pubkey ? "var(--color-accent-green-light)" : "transparent",
+                          border: `1.5px solid ${copied.pubkey ? "var(--color-accent-green)" : "var(--border-muted)"}`,
+                          color: copied.pubkey ? "var(--color-accent-green)" : "var(--fg-body)",
+                        }}
+                      >
+                        {copied.pubkey ? "Copied!" : "Copy Public Key"}
+                      </button>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center justify-start gap-2">
                     <button
                       type="button"
-                      onClick={async () => {
-                        if (!subtleAvailable || busy || !canUseImportedKeypair) return;
-                        setBusy(true);
-                        setError("");
-                        try {
-                          await importKeypairValues(importPubB64, importPrivB64);
-                        } catch (e) {
-                          setError(e instanceof Error ? e.message : "Failed to use imported keypair.");
-                        } finally {
-                          setBusy(false);
-                        }
-                      }}
-                      disabled={!subtleAvailable || busy || !canUseImportedKeypair}
-                      className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
-                      style={{
-                        background: "var(--home-result-primary-bg)",
-                        color: "var(--home-result-primary-fg)",
-                        boxShadow: "var(--home-result-primary-shadow)",
-                      }}
-                    >
-                      Use this keypair
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => importFileInputRef.current?.click()}
-                      disabled={!subtleAvailable || busy}
+                      disabled={busy}
                       className="rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-60"
                       style={{ background: "transparent", border: "1.5px solid var(--border-muted)", color: "var(--fg-body)" }}
                     >
@@ -722,10 +587,12 @@ export default function KeypairPage() {
                       type="button"
                       onClick={() => {
                         setImportPrivB64("");
-                        setImportPubB64("");
+                        setImportPrivError("");
                         if (activeSource === "imported") {
-                          setActiveKeypair(null);
+                          setActiveSeed(null);
                           setActiveSource(null);
+                          setPublicKeyB64("");
+                          setSignatureB64("");
                         }
                       }}
                       className="rounded-lg px-3 py-2 text-xs font-semibold"
@@ -742,10 +609,6 @@ export default function KeypairPage() {
                         const file = event.target.files?.[0];
                         event.target.value = "";
                         if (!file) return;
-                        if (!subtleAvailable) {
-                          setError("WebCrypto is unavailable in this browser.");
-                          return;
-                        }
                         setBusy(true);
                         setError("");
                         try {
@@ -841,7 +704,7 @@ export default function KeypairPage() {
                 <button
                   type="button"
                   onClick={signPayload}
-                  disabled={!subtleAvailable || !canSign || busy}
+                  disabled={!canSign || busy}
                   className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
                   style={{
                     background: "var(--home-result-primary-bg)",
