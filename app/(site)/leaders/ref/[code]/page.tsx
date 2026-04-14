@@ -3,6 +3,16 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { getReferralDashboard, type ReferralScope } from "@/lib/leaders/leaders";
 import {
   calculateReferralProjection,
@@ -16,6 +26,20 @@ import {
   type ReferralDashboardData,
   type ProjectionModel,
 } from "@/lib/leaders/referral-dashboard";
+
+const DIRECT_CHART_COLOR = "var(--leaders-area-referred)";
+const INDIRECT_CHART_COLOR = "var(--leaders-area-non-referred)";
+const REWARDS_CHART_COLOR = "#22c55e";
+
+interface ReferralChartPoint {
+  date: string;
+  direct: number;
+  indirect: number;
+  rewards: number;
+  directDelta?: number;
+  indirectDelta?: number;
+  rewardsDelta?: number;
+}
 
 function ZecSymbol({ className }: { className?: string }) {
   return (
@@ -52,6 +76,7 @@ export default function ReferralDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [projectionOpen, setProjectionOpen] = useState(false);
   const [referralLevelFilter, setReferralLevelFilter] = useState<"all" | number>("all");
+  const [visibleReferralRows, setVisibleReferralRows] = useState(10);
   const [activeMetricKey, setActiveMetricKey] = useState<"direct" | "indirect" | "payout" | null>(null);
   const [prices, setPrices] = useState<PriceByBucket>(DEFAULT_PRICE_BY_BUCKET);
   const [conversions, setConversions] = useState<ConversionByBucket>(DEFAULT_CONVERSION_BY_BUCKET);
@@ -83,19 +108,40 @@ export default function ReferralDashboardPage() {
     return calculateReferralProjection({ data, model, prices, conversions });
   }, [conversions, data, model, prices]);
 
+  const referralChartSeries = useMemo(() => {
+    if (!data) return [];
+    return buildReferralChartSeries({
+      data,
+      model,
+      prices,
+      conversions,
+      commissionRate: projection?.commissionRate ?? 0.15,
+    });
+  }, [conversions, data, model, prices, projection?.commissionRate]);
+
   const visibleReferrals = useMemo(() => {
     if (!data) return [];
     if (referralLevelFilter === "all") return data.descendants;
     return data.descendants.filter((entry) => entry.depth === referralLevelFilter);
   }, [data, referralLevelFilter]);
+  const visibleReferralTableRows = useMemo(
+    () => visibleReferrals.slice(0, visibleReferralRows),
+    [visibleReferrals, visibleReferralRows],
+  );
   const referralLevelOptions = useMemo(
     () => (data ? ["all" as const, ...data.depthCounts.map((row) => row.depth)] : ["all" as const]),
     [data],
   );
+  const canShowMoreReferralRows = visibleReferralRows < visibleReferrals.length;
+  const canHideReferralRows = visibleReferralRows > 10;
   const activeReferralLevelIndex = Math.max(
     0,
     referralLevelOptions.findIndex((option) => option === referralLevelFilter),
   );
+
+  useEffect(() => {
+    setVisibleReferralRows(10);
+  }, [referralLevelFilter, visibleReferrals.length]);
 
   const projectedReferralPayout = (name: string, depth: number): number => {
     const bucket = getNameLengthBucket(name);
@@ -107,7 +153,7 @@ export default function ReferralDashboardPage() {
   if (loading) {
     return (
       <main className="mx-auto w-full max-w-5xl px-4 pb-20 pt-4 sm:px-6">
-        <p className="py-20 text-center text-fg-muted">Loading referral dashboard...</p>
+        <ReferralDashboardSkeleton />
       </main>
     );
   }
@@ -163,13 +209,7 @@ export default function ReferralDashboardPage() {
         className="mb-8 rounded-2xl border p-5 sm:p-6"
         style={{ background: "var(--leaders-card-bg)", borderColor: "var(--leaders-card-border)" }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">Referral Dashboard</p>
-          <p className="rounded-full border px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
-            {data.waitlistPosition ? `#${data.waitlistPosition.toLocaleString()}` : "-"}
-          </p>
-        </div>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="inline-flex items-center gap-1 text-3xl font-bold tracking-tight text-fg-heading">
               <span>{data.root?.name ?? data.referralCode}</span>
@@ -183,16 +223,22 @@ export default function ReferralDashboardPage() {
             </h1>
             <p className="mt-1 font-mono text-sm text-fg-muted">{data.referralCode}</p>
           </div>
-          <div className="text-sm text-fg-muted">
-            {data.root ? (
-              <>
-                Joined <span className="font-medium text-fg-body">{formatDate(data.root.created_at)}</span>
-              </>
-            ) : (
-              "Referral code not found as a waitlist member."
-            )}
+          <div className="text-right">
+            <p className="inline-block rounded-full border px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
+              {data.waitlistPosition ? `#${data.waitlistPosition.toLocaleString()}` : "-"}
+            </p>
+            <div className="mt-2 text-sm text-fg-muted">
+              {data.root ? (
+                <>
+                  Joined <span className="font-medium text-fg-body">{formatDate(data.root.created_at)}</span>
+                </>
+              ) : (
+                "Referral code not found as a waitlist member."
+              )}
+            </div>
           </div>
         </div>
+        <ReferralGrowthChart data={referralChartSeries} />
       </section>
 
       <section className="mb-8 grid grid-cols-3 gap-3">
@@ -274,14 +320,14 @@ export default function ReferralDashboardPage() {
           </div>
           <div
             className="mt-4 overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
-            style={{ maxHeight: `${Math.max(150, 58 + Math.max(1, visibleReferrals.length) * 42)}px` }}
+            style={{ maxHeight: `${Math.max(150, 58 + Math.max(1, visibleReferralTableRows.length) * 42)}px` }}
           >
             <div className="max-w-full overflow-x-auto">
               <table className="w-full min-w-[460px] text-left text-sm">
                 <thead>
                   <tr className="border-b text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
                     <th className="py-2 pr-3">Lvl</th>
-                    <th className="px-3 py-2">Name</th>
+                    <th className="px-3 py-2">ZcashName</th>
                     <th className="px-3 py-2">Joined</th>
                     <th className="py-2 pl-3 text-right">Refs</th>
                     <th className="py-2 pl-3 text-right">Reward</th>
@@ -293,7 +339,7 @@ export default function ReferralDashboardPage() {
                       <td colSpan={5} className="py-10 text-center text-fg-muted">No referrals at this level.</td>
                     </tr>
                   ) : (
-                    visibleReferrals.map((entry) => (
+                    visibleReferralTableRows.map((entry) => (
                       <tr key={entry.referral_code} className="border-b last:border-b-0 transition-colors duration-300" style={{ borderColor: "var(--leaders-card-border)" }}>
                         <td className="py-2 pr-3 tabular-nums text-fg-body">{toRoman(entry.depth)}</td>
                         <td className="px-3 py-2 font-semibold text-fg-heading">
@@ -313,6 +359,37 @@ export default function ReferralDashboardPage() {
               </table>
             </div>
           </div>
+          {visibleReferrals.length > 10 && (
+            <div
+              className="mt-3 flex items-center justify-between gap-3 border-t pt-3"
+              style={{ borderColor: "var(--leaders-card-border)" }}
+            >
+              {canShowMoreReferralRows ? (
+                <button
+                  type="button"
+                  className="cursor-pointer text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg-heading"
+                  onClick={() => {
+                    setVisibleReferralRows((current) => Math.min(current + 10, visibleReferrals.length));
+                  }}
+                >
+                  Show 10 more
+                </button>
+              ) : (
+                <span aria-hidden="true" />
+              )}
+              {canHideReferralRows && (
+                <button
+                  type="button"
+                  className="ml-auto cursor-pointer text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg-heading"
+                  onClick={() => {
+                    setVisibleReferralRows((current) => Math.max(10, current - 10));
+                  }}
+                >
+                  Show 10 less
+                </button>
+              )}
+            </div>
+          )}
         </DashboardShell>
       </section>
 
@@ -404,6 +481,224 @@ function BackLink() {
     <Link href="/leaders" className="text-sm font-semibold text-fg-muted underline-offset-4 transition-colors hover:text-fg-heading hover:underline">
       Back to Leaders
     </Link>
+  );
+}
+
+function ReferralGrowthChart({ data }: { data: ReferralChartPoint[] }) {
+  return (
+    <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--leaders-card-border)" }}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 text-sm font-semibold text-fg-heading">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: DIRECT_CHART_COLOR }} />
+            Direct
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: INDIRECT_CHART_COLOR }} />
+            Indirect
+          </span>
+        </div>
+        <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-fg-heading">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: REWARDS_CHART_COLOR }} />
+          Rewards
+        </div>
+      </div>
+      {data.length === 0 ? (
+        <p className="py-16 text-center text-sm text-fg-muted">No referral history yet.</p>
+      ) : (
+        <ResponsiveContainer width="100%" height={240}>
+          <AreaChart data={data} margin={{ top: 4, right: -12, bottom: 0, left: -12 }}>
+            <defs>
+              <linearGradient id="gradDashboardDirect" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={DIRECT_CHART_COLOR} stopOpacity={0.4} />
+                <stop offset="100%" stopColor={DIRECT_CHART_COLOR} stopOpacity={0.05} />
+              </linearGradient>
+              <linearGradient id="gradDashboardIndirect" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={INDIRECT_CHART_COLOR} stopOpacity={0.4} />
+                <stop offset="100%" stopColor={INDIRECT_CHART_COLOR} stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: "var(--fg-muted)", fontSize: 12 }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+            />
+            <YAxis
+              yAxisId="referrals"
+              tick={{ fill: "var(--fg-muted)", fontSize: 12 }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              allowDecimals={false}
+            />
+            <YAxis
+              yAxisId="rewards"
+              orientation="right"
+              tick={{ fill: "var(--fg-muted)", fontSize: 12 }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              tickFormatter={formatRewardAxisTick}
+            />
+            <Tooltip content={<ReferralChartTooltip />} />
+            <Area
+              yAxisId="referrals"
+              type="monotone"
+              dataKey="direct"
+              stackId="referrals"
+              stroke={DIRECT_CHART_COLOR}
+              fill="url(#gradDashboardDirect)"
+              strokeWidth={2}
+            />
+            <Area
+              yAxisId="referrals"
+              type="monotone"
+              dataKey="indirect"
+              stackId="referrals"
+              stroke={INDIRECT_CHART_COLOR}
+              fill="url(#gradDashboardIndirect)"
+              strokeWidth={2}
+            />
+            <Line
+              yAxisId="rewards"
+              type="monotone"
+              dataKey="rewards"
+              stroke={REWARDS_CHART_COLOR}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4, fill: REWARDS_CHART_COLOR }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
+function ReferralChartTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { value: number; name: string; payload?: ReferralChartPoint }[];
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+
+  const direct = payload.find((p) => p.name === "direct");
+  const indirect = payload.find((p) => p.name === "indirect");
+  const rewards = payload.find((p) => p.name === "rewards");
+  const point = payload[0]?.payload;
+
+  return (
+    <div
+      className="rounded-xl border px-4 py-3 text-sm backdrop-blur-md"
+      style={{
+        background: "var(--leaders-tooltip-bg)",
+        borderColor: "var(--leaders-tooltip-border)",
+        color: "var(--fg-body)",
+      }}
+    >
+      <p className="mb-1.5 font-semibold text-fg-heading">{label}</p>
+      <p>
+        Direct:{" "}
+        <span className="font-semibold" style={{ color: DIRECT_CHART_COLOR }}>
+          {direct?.value ?? 0}
+        </span>
+        {formatCountDelta(point?.directDelta)}
+      </p>
+      <p>
+        Indirect:{" "}
+        <span className="font-semibold" style={{ color: INDIRECT_CHART_COLOR }}>
+          {indirect?.value ?? 0}
+        </span>
+        {formatCountDelta(point?.indirectDelta)}
+      </p>
+      <p>
+        Rewards:{" "}
+        <span className="font-semibold" style={{ color: REWARDS_CHART_COLOR }}>
+          <ZecSymbol className="mr-0.5 inline-block" /> {formatZec(rewards?.value ?? 0)}
+        </span>
+        {formatZecDelta(point?.rewardsDelta)}
+      </p>
+    </div>
+  );
+}
+
+function ReferralDashboardSkeleton() {
+  return (
+    <>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <Skeleton w="w-24" />
+        <Skeleton w="w-24" />
+      </div>
+      <section
+        className="mb-8 rounded-2xl border p-5 sm:p-6"
+        style={{ background: "var(--leaders-card-bg)", borderColor: "var(--leaders-card-border)" }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton w="w-36" />
+          <Skeleton w="w-16" />
+        </div>
+        <div className="mt-5 flex items-end justify-between gap-4">
+          <div>
+            <Skeleton w="w-44" />
+            <div className="mt-3">
+              <Skeleton w="w-28" />
+            </div>
+          </div>
+          <Skeleton w="w-24" />
+        </div>
+        <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--leaders-card-border)" }}>
+          <div className="mb-3 flex items-center justify-between">
+            <Skeleton w="w-28" />
+            <Skeleton w="w-20" />
+          </div>
+          <div className="relative h-[240px] overflow-hidden rounded-lg">
+            <div className="absolute inset-x-0 bottom-6 top-4 animate-pulse rounded-lg bg-fg-dim/10" />
+            <div className="absolute bottom-10 left-4 h-16 w-[28%] animate-pulse rounded-md bg-fg-dim/15" />
+            <div className="absolute bottom-10 left-[34%] h-28 w-[28%] animate-pulse rounded-md bg-fg-dim/15" />
+            <div className="absolute bottom-10 right-4 h-40 w-[28%] animate-pulse rounded-md bg-fg-dim/15" />
+          </div>
+        </div>
+      </section>
+      <section className="mb-8 grid grid-cols-3 gap-3">
+        <MetricSkeleton />
+        <MetricSkeleton />
+        <MetricSkeleton />
+      </section>
+      <DashboardShell>
+        <Skeleton w="w-32" />
+        <div className="mt-5 grid min-w-[460px] gap-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1fr_1fr] items-center gap-3 rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--leaders-card-border)" }}
+            >
+              {Array.from({ length: 6 }).map((__, cellIndex) => (
+                <Skeleton key={cellIndex} w={cellIndex === 0 ? "w-5" : "w-12"} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </DashboardShell>
+    </>
+  );
+}
+
+function MetricSkeleton() {
+  return (
+    <div
+      className="rounded-2xl border p-3 sm:p-5"
+      style={{ background: "var(--leaders-card-bg)", borderColor: "var(--leaders-card-border)" }}
+    >
+      <Skeleton w="w-16" />
+      <div className="mt-3">
+        <Skeleton w="w-12" />
+      </div>
+    </div>
   );
 }
 
@@ -616,14 +911,16 @@ function MetricCard({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-2xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)] sm:p-5"
+      className="flex cursor-pointer flex-col items-center gap-1 rounded-2xl border px-6 py-5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)]"
       style={{
         background: active ? "var(--market-stats-segment-active-bg)" : "var(--leaders-card-bg)",
         borderColor: "var(--leaders-card-border)",
       }}
     >
-      <div className="text-xl font-bold tabular-nums text-fg-heading sm:text-2xl">{value}</div>
-      <div className="mt-1 text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-fg-muted sm:text-[0.78rem] sm:tracking-[0.08em]">{label}</div>
+      <div className="tabular-nums text-[clamp(1.4rem,2.5vw,2rem)] font-semibold leading-none tracking-tight text-fg-heading">
+        {value}
+      </div>
+      <div className="text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">{label}</div>
     </button>
   );
 }
@@ -712,8 +1009,101 @@ function bucketLabel(bucket: NameLengthBucket): string {
   return bucket === "7+" ? "7+ chars" : `${bucket} char`;
 }
 
+function buildReferralChartSeries({
+  data,
+  model,
+  prices,
+  conversions,
+  commissionRate,
+}: {
+  data: ReferralDashboardData;
+  model: ProjectionModel;
+  prices: PriceByBucket;
+  conversions: ConversionByBucket;
+  commissionRate: number;
+}): ReferralChartPoint[] {
+  const rows = [...data.descendants].sort((a, b) => {
+    const timeA = new Date(a.created_at).getTime();
+    const timeB = new Date(b.created_at).getTime();
+    if (timeA !== timeB) return timeA - timeB;
+    return a.referral_code.localeCompare(b.referral_code);
+  });
+  const points: ReferralChartPoint[] = [];
+  let direct = 0;
+  let indirect = 0;
+  let rewards = 0;
+  let lastDate = "";
+
+  for (const row of rows) {
+    const date = row.created_at.slice(0, 10);
+    if (row.depth === 1) {
+      direct += 1;
+    } else {
+      indirect += 1;
+    }
+
+    const bucket = getNameLengthBucket(row.name);
+    const conversionRate = Math.max(0, conversions[bucket]) / 100;
+    rewards +=
+      model === "fixed"
+        ? fixedRewardForDepth(row.depth) * conversionRate
+        : prices[bucket] * conversionRate * commissionRate;
+
+    const point = {
+      date,
+      direct,
+      indirect,
+      rewards: roundZec(rewards),
+    };
+
+    if (date !== lastDate) {
+      points.push(point);
+      lastDate = date;
+    } else {
+      points[points.length - 1] = point;
+    }
+  }
+
+  for (let i = 1; i < points.length; i++) {
+    points[i].directDelta = points[i].direct - points[i - 1].direct;
+    points[i].indirectDelta = points[i].indirect - points[i - 1].indirect;
+    points[i].rewardsDelta = roundZec(points[i].rewards - points[i - 1].rewards);
+  }
+
+  return points;
+}
+
+function formatCountDelta(value: number | undefined): ReactNode {
+  if (value === undefined) return null;
+  return (
+    <span className="ml-1 text-fg-muted" style={{ opacity: 0.7 }}>
+      ({value > 0 ? "+" : ""}
+      {value})
+    </span>
+  );
+}
+
+function formatZecDelta(value: number | undefined): ReactNode {
+  if (value === undefined) return null;
+  return (
+    <span className="ml-1 text-fg-muted" style={{ opacity: 0.7 }}>
+      ({value > 0 ? "+" : ""}
+      {formatZec(value)})
+    </span>
+  );
+}
+
+function roundZec(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
+
 function formatDate(value: string): string {
   return value ? value.slice(0, 10) : "-";
+}
+
+function formatRewardAxisTick(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
 }
 
 function formatZec(value: number): string {
@@ -722,4 +1112,8 @@ function formatZec(value: number): string {
   if (value >= 10) return value.toFixed(1);
   if (value >= 1) return value.toFixed(2);
   return value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function Skeleton({ w = "w-12" }: { w?: string }) {
+  return <span className={`inline-block h-[0.85em] ${w} animate-pulse rounded-md bg-fg-dim/20 align-middle`} />;
 }

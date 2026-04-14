@@ -344,19 +344,21 @@ export default function LeaderboardContent() {
           borderColor: "var(--leaders-card-border)",
         }}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2
-            className="font-semibold"
-            style={{ fontSize: "var(--type-section-subtitle)", color: "var(--fg-heading)" }}
-          >
-            Waitlist
-          </h2>
-          <h2
-            className="font-semibold"
-            style={{ fontSize: "var(--type-section-subtitle)", color: "var(--fg-heading)" }}
-          >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-sm font-semibold text-fg-heading">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--leaders-area-referred)" }} />
+              Referred
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--leaders-area-non-referred)" }} />
+              Waitlist
+            </span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-fg-heading">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: REWARDS_CHART_COLOR }} />
             Rewards
-          </h2>
+          </div>
         </div>
 
         {loading ? (
