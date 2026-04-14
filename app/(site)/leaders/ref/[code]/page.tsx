@@ -243,16 +243,16 @@ export default function ReferralDashboardPage() {
 
       <section className="mb-8 grid grid-cols-3 gap-3">
         <MetricCard
+          label="Referrals"
+          value={data.totalAttributedReferrals.toLocaleString()}
+          active={activeMetricKey === "indirect"}
+          onClick={() => setActiveMetricKey((current) => (current === "indirect" ? null : "indirect"))}
+        />
+        <MetricCard
           label="Direct"
           value={data.directReferrals.length.toLocaleString()}
           active={activeMetricKey === "direct"}
           onClick={() => setActiveMetricKey((current) => (current === "direct" ? null : "direct"))}
-        />
-        <MetricCard
-          label="Indirect"
-          value={indirectReferrals.toLocaleString()}
-          active={activeMetricKey === "indirect"}
-          onClick={() => setActiveMetricKey((current) => (current === "indirect" ? null : "indirect"))}
         />
         <MetricCard
           label="Rewards"
@@ -276,7 +276,7 @@ export default function ReferralDashboardPage() {
           }}
         >
           {activeMetricKey === "direct" && "People who joined using this referral code."}
-          {activeMetricKey === "indirect" && "People referred by your referrals, and by the levels below them."}
+          {activeMetricKey === "indirect" && "All referrals connected to this code across every level."}
           {activeMetricKey === "payout" && "Projected until referrals complete purchases."}
         </p>
       </div>
@@ -590,6 +590,11 @@ function ReferralChartTooltip({
   const direct = payload.find((p) => p.name === "direct");
   const rewards = payload.find((p) => p.name === "rewards");
   const point = payload[0]?.payload;
+  const referrals = (direct?.value ?? 0) + (indirect?.value ?? 0);
+  const referralsDelta =
+    point?.directDelta === undefined && point?.indirectDelta === undefined
+      ? undefined
+      : (point?.directDelta ?? 0) + (point?.indirectDelta ?? 0);
 
   return (
     <div
@@ -604,9 +609,9 @@ function ReferralChartTooltip({
       <p>
         Referrals:{" "}
         <span className="font-semibold" style={{ color: INDIRECT_CHART_COLOR }}>
-          {indirect?.value ?? 0}
+          {referrals}
         </span>
-        {formatCountDelta(point?.indirectDelta)}
+        {formatCountDelta(referralsDelta)}
       </p>
       <p>
         Direct:{" "}
