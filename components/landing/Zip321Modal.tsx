@@ -1074,29 +1074,6 @@ export default function Zip321Modal({ target, onClose, onSuccess }: Zip321ModalP
               </p>
             )}
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
-                Signature (base64)
-              </label>
-              <textarea
-                ref={signatureRef}
-                value={signatureInput}
-                onChange={(e) => { setSignatureInput(e.target.value.trim()); setSignError(""); }}
-                rows={3}
-                placeholder="Paste signed payload"
-                className="w-full rounded-xl px-4 py-3 text-sm outline-none font-mono resize-none"
-                style={inputStyle(signatureLiveError ? "var(--accent-red, #e05252)" : undefined)}
-              />
-              {signatureInput.trim() && (
-                <p
-                  className="text-xs"
-                  style={{ color: signatureLiveError ? "var(--accent-red, #e05252)" : "var(--color-accent-green)" }}
-                >
-                  {signatureLiveError || "Valid Ed25519 signature for this payload."}
-                </p>
-              )}
-            </div>
-
             {requiresPubkeyInput && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
@@ -1121,6 +1098,29 @@ export default function Zip321Modal({ target, onClose, onSuccess }: Zip321ModalP
                 )}
               </div>
             )}
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold" style={{ color: "var(--fg-muted)" }}>
+                Signature (base64)
+              </label>
+              <textarea
+                ref={signatureRef}
+                value={signatureInput}
+                onChange={(e) => { setSignatureInput(e.target.value.trim()); setSignError(""); }}
+                rows={3}
+                placeholder="Paste signed payload"
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none font-mono resize-none"
+                style={inputStyle(signatureLiveError ? "var(--accent-red, #e05252)" : undefined)}
+              />
+              {signatureInput.trim() && (
+                <p
+                  className="text-xs"
+                  style={{ color: signatureLiveError ? "var(--accent-red, #e05252)" : "var(--color-accent-green)" }}
+                >
+                  {signatureLiveError || "Valid Ed25519 signature for this payload."}
+                </p>
+              )}
+            </div>
 
             {signError && (
               <p className="text-sm font-semibold" style={{ color: "var(--accent-red, #e05252)" }}>
