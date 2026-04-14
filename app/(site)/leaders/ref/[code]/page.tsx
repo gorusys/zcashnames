@@ -215,7 +215,7 @@ export default function ReferralDashboardPage() {
         </p>
       </div>
 
-      <section className="mb-8 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+      <section className="mb-8 grid gap-6">
         <RewardSchedule model={model} data={data} commissionRate={projection?.commissionRate ?? 0.15} />
 
         <DashboardShell>
@@ -393,7 +393,7 @@ function RewardSchedule({
           <h2 className="text-xl font-semibold text-fg-heading">Summary</h2>
           <p className="mt-1 text-sm text-fg-muted">
             {model === "fixed"
-              ? "Fixed rewards are based on referral depth."
+              ? "Fixed rewards start at 0.05 ZEC for level I and halve each level."
               : "Commission is based on total attributed referrals across every level."}
           </p>
         </div>
@@ -401,13 +401,12 @@ function RewardSchedule({
 
       {model === "fixed" ? (
         <div className="mt-5 grid gap-3">
-          <div className="grid grid-cols-[3.5rem_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-right text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
+          <div className="grid grid-cols-[3.5rem_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-right text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
             <span className="text-left">Level</span>
             <span>Attributed</span>
             <span>24h</span>
             <span>7d</span>
             <span>30d</span>
-            <span>Rate</span>
             <span>Total</span>
           </div>
           {fixedLevels.map((level) => (
@@ -449,7 +448,7 @@ function FixedScheduleRow({
 
   return (
     <div
-      className="grid grid-cols-[3.5rem_1fr_1fr_1fr_1fr_1fr_1fr] items-center gap-3 rounded-lg border px-3 py-2"
+      className="grid grid-cols-[3.5rem_1fr_1fr_1fr_1fr_1fr] items-center gap-3 rounded-lg border px-3 py-2"
       style={{ borderColor: "var(--leaders-card-border)" }}
     >
       <p className="text-sm font-bold text-fg-heading">{toRoman(level)}</p>
@@ -457,7 +456,6 @@ function FixedScheduleRow({
       <ScheduleMetric value={formatDelta(recentCounts.day)} muted={recentCounts.day === 0} />
       <ScheduleMetric value={formatDelta(recentCounts.week)} muted={recentCounts.week === 0} />
       <ScheduleMetric value={formatDelta(recentCounts.month)} muted={recentCounts.month === 0} />
-      <ScheduleMetric value={<ZecAmount value={rate} />} />
       <ScheduleMetric value={<ZecAmount value={projectedTotal} />} strong />
     </div>
   );
