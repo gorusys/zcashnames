@@ -44,14 +44,14 @@ const benefitGroups: BenefitGroup[] = [
     ],
   },
   {
-    title: "Private & verifiable",
+    title: "Shield yourself",
     items: [
       {
         title: "Private by default",
-        description: "Your name reveals nothing about your activity",
+        description: "Your name reveals nothing about your finances",
       },
       {
-        title: "Portable, verified identity",
+        title: "Portable identity",
         description: "Use your name across app, like Zcash.me",
         soon: true,
       },
@@ -137,14 +137,16 @@ export default function HowItWorks() {
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-4 md:gap-0 mb-14">
         {/* Step 1 */}
         <div className="flex flex-col">
-          <h3
-            className="type-kicker mb-4 px-1"
-            style={{ color: "var(--fg-muted)" }}
-          >First,</h3>
           <div
             className="rounded-xl p-6 flex-1"
             style={{ border: "1px solid var(--faq-border)" }}
           >
+            <div
+              className="mb-3 text-3xl font-bold italic leading-none"
+              style={{ color: "var(--fg-muted)" }}
+            >
+              1
+            </div>
             <h3
               className="type-section-subtitle font-semibold mb-2"
               style={{ color: "var(--fg-heading)" }}
@@ -171,14 +173,16 @@ export default function HowItWorks() {
 
         {/* Step 2 */}
         <div className="flex flex-col">
-          <h3
-            className="type-kicker mb-4 px-1"
-            style={{ color: "var(--fg-muted)" }}
-          >Next,</h3>
           <div
             className="rounded-xl p-6 flex-1"
             style={{ border: "1px solid var(--faq-border)" }}
           >
+            <div
+              className="mb-3 text-3xl font-bold italic leading-none"
+              style={{ color: "var(--fg-muted)" }}
+            >
+              2
+            </div>
             <h3
               className="type-section-subtitle font-semibold mb-2"
               style={{ color: "var(--fg-heading)" }}
@@ -205,14 +209,16 @@ export default function HowItWorks() {
 
         {/* Step 3 */}
         <div className="flex flex-col">
-          <h3
-            className="type-kicker mb-4 px-1"
-            style={{ color: "var(--fg-muted)" }}
-          >Finally,</h3>
           <div
             className="rounded-xl p-6 flex-1"
             style={{ border: "1px solid var(--faq-border)" }}
           >
+            <div
+              className="mb-3 text-3xl font-bold italic leading-none"
+              style={{ color: "var(--fg-muted)" }}
+            >
+              3
+            </div>
             <h3
               className="type-section-subtitle font-semibold mb-2"
               style={{ color: "var(--fg-heading)" }}

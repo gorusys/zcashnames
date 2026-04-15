@@ -82,7 +82,7 @@ const groups: FAQGroup[] = [
       {
         question: "How do waitlist referrals work?",
         answer:
-          "When you join the waitlist you receive a unique referral link. Sharing it moves you up the queue - the more people you refer, the earlier you get access when ZcashNames launches. Plus, if they purchase a name after our launch, you earn 0.05 ZEC per name.",
+          "When you join the waitlist you receive a unique referral link. Sharing it moves you up the queue - the more people you refer, the earlier you get access when ZcashNames launches. Plus, if they purchase a name after our launch, direct referral rewards are set at 1/5 of the lowest name claim price at purchase time.",
       },
       {
         question: "I joined the waitlist - is my name reserved?",

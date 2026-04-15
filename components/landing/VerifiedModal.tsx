@@ -82,8 +82,8 @@ function ConfirmView({
       </p>
       <div className="w-full rounded-xl px-4 py-3 flex flex-col gap-3 text-left" style={{ border: "1px solid var(--border-muted)" }}>
         <p className="text-xs" style={{ color: "var(--fg-muted)", lineHeight: 1.6 }}>
-          <strong style={{ color: "var(--fg-body)" }}>Get 0.05 ZEC </strong>
-          for each referral who joins the waitlist and buys their name during launch week.
+          <strong style={{ color: "var(--fg-body)" }}>Earn 1/5 of the lowest name claim price </strong>
+          for each direct referral who joins the waitlist and buys their name during launch week.
         </p>
         <div className="flex gap-2">
           <button

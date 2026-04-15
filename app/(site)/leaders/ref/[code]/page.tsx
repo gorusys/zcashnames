@@ -160,7 +160,8 @@ export default function ReferralDashboardPage() {
   const [projectionOpen, setProjectionOpen] = useState(false);
   const [referralLevelFilter, setReferralLevelFilter] = useState<"all" | number>("all");
   const [visibleReferralRows, setVisibleReferralRows] = useState(10);
-  const [activeMetricKey, setActiveMetricKey] = useState<"direct" | "indirect" | "payout" | null>(null);
+  const [activeMetricKey, setActiveMetricKey] = useState<"indirect" | "payout" | null>(null);
+  const [directMetricFace, setDirectMetricFace] = useState<"direct" | "indirect">("direct");
   const [prices, setPrices] = useState<PriceByBucket>(DEFAULT_PRICE_BY_BUCKET);
   const [conversions, setConversions] = useState<ConversionByBucket>(DEFAULT_CONVERSION_BY_BUCKET);
 
@@ -225,6 +226,10 @@ export default function ReferralDashboardPage() {
   useEffect(() => {
     setVisibleReferralRows(10);
   }, [referralLevelFilter, visibleReferrals.length]);
+
+  useEffect(() => {
+    setDirectMetricFace("direct");
+  }, [referralCode, scope]);
 
   const projectedReferralPayout = (name: string, depth: number): number => {
     const bucket = getNameLengthBucket(name);
@@ -353,10 +358,15 @@ export default function ReferralDashboardPage() {
           onClick={() => setActiveMetricKey((current) => (current === "indirect" ? null : "indirect"))}
         />
         <MetricCard
-          label="Direct"
-          value={data.directReferrals.length.toLocaleString()}
-          active={activeMetricKey === "direct"}
-          onClick={() => setActiveMetricKey((current) => (current === "direct" ? null : "direct"))}
+          label={directMetricFace === "direct" ? "Direct" : "Indirect"}
+          value={(directMetricFace === "direct" ? data.directReferrals.length : indirectReferrals).toLocaleString()}
+          ariaLabel={directMetricFace === "direct" ? "Show indirect referrals" : "Show direct referrals"}
+          flipState={directMetricFace}
+          actionIcon={<MetricFlipIcon />}
+          onClick={() => {
+            setActiveMetricKey(null);
+            setDirectMetricFace((current) => (current === "direct" ? "indirect" : "direct"));
+          }}
         />
         <MetricCard
           label="Rewards"
@@ -379,9 +389,8 @@ export default function ReferralDashboardPage() {
             color: "var(--market-stats-help-text)",
           }}
         >
-          {activeMetricKey === "direct" && "People who joined using this referral code."}
           {activeMetricKey === "indirect" && "All referrals connected to this code across every level."}
-          {activeMetricKey === "payout" && "Projected until referrals complete purchases."}
+          {activeMetricKey === "payout" && "Projected rewards when all referrals complete purchases."}
         </p>
       </div>
 
@@ -508,7 +517,7 @@ export default function ReferralDashboardPage() {
             >
               <span>
                 <span className="block text-xl font-semibold text-fg-heading">Payout Projection</span>
-                <span className="mt-1 block text-sm text-fg-muted">Projected until referrals complete purchases.</span>
+                <span className="mt-1 block text-sm text-fg-muted">Projected rewards when all referrals complete purchases.</span>
               </span>
               <span className="shrink-0 text-sm font-semibold uppercase tracking-[0.08em] text-fg-muted">
                 {projectionOpen ? "Collapse" : "Expand"}
@@ -1043,28 +1052,59 @@ function MetricCard({
   label,
   value,
   active = false,
+  actionIcon,
+  ariaLabel,
+  flipState,
   onClick,
 }: {
   label: string;
   value: ReactNode;
   active?: boolean;
+  actionIcon?: ReactNode;
+  ariaLabel?: string;
+  flipState?: "direct" | "indirect";
   onClick?: () => void;
 }) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
       onClick={onClick}
-      className="flex cursor-pointer flex-col items-center gap-1 rounded-2xl border px-6 py-5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)]"
+      className="group relative flex cursor-pointer flex-col items-center gap-1 overflow-hidden rounded-2xl border px-6 py-5 text-center transition-colors [perspective:700px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)]"
       style={{
         background: active ? "var(--market-stats-segment-active-bg)" : "var(--leaders-card-bg)",
         borderColor: "var(--leaders-card-border)",
       }}
     >
-      <div className="tabular-nums text-[clamp(1.4rem,2.5vw,2rem)] font-semibold leading-none tracking-tight text-fg-heading">
-        {value}
-      </div>
-      <div className="text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">{label}</div>
+      {actionIcon && (
+        <span className="absolute right-2.5 top-2.5 text-fg-muted opacity-70 transition-opacity group-hover:opacity-100" aria-hidden="true">
+          {actionIcon}
+        </span>
+      )}
+      <span
+        className={`flex flex-col items-center gap-1 transition-transform duration-300 ease-out motion-reduce:transition-none ${
+          flipState === "indirect" ? "[transform:rotateY(360deg)]" : "[transform:rotateY(0deg)]"
+        }`}
+      >
+        <span className="tabular-nums text-[clamp(1.4rem,2.5vw,2rem)] font-semibold leading-none tracking-tight text-fg-heading">
+          {value}
+        </span>
+        <span className="text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">{label}</span>
+      </span>
     </button>
+  );
+}
+
+function MetricFlipIcon() {
+  return (
+    <span
+      className="block h-4 w-4 bg-current"
+      style={{
+        mask: "url('/icons/flip.svg') center / contain no-repeat",
+        WebkitMask: "url('/icons/flip.svg') center / contain no-repeat",
+      }}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -1246,7 +1286,7 @@ function formatDate(value: string): string {
 
 function formatRewardAxisTick(value: number): string {
   if (!Number.isFinite(value)) return "0";
-  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+  return formatZec(value);
 }
 
 function formatZec(value: number): string {

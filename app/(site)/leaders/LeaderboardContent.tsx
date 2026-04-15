@@ -599,7 +599,7 @@ export default function LeaderboardContent() {
           >
             {activeStatKey === "waitlist" && "Total number of people on the ZcashNames waitlist."}
             {activeStatKey === "referred" && "Number of waitlist members who were referred by someone."}
-            {activeStatKey === "rewards" && "Earn 0.05 ZEC when a direct referral buys a name; each indirect level earns half the level before it."}
+            {activeStatKey === "rewards" && "Direct referral purchases earn 1/5 of the lowest name claim price at purchase time; each indirect level earns half the level before it."}
           </p>
         </div>
       </section>
@@ -978,9 +978,11 @@ const HOW_IT_WORKS: { title: string; body: ReactNode }[] = [
     title: "Rewards",
     body: (
       <>
-        Direct referral purchases earn <strong>0.05 ZEC</strong>. Indirect levels are attributed too,
-        with each level earning half the level before it. Until purchases complete during early
-        access, rewards shown are potential.
+        Direct referral purchases earn <strong>1/5 of the lowest name claim price</strong> at the
+        time of purchase. Because claim prices can vary, the ZEC reward amount may change. The
+        current 0.05 ZEC figure is illustrative only. Indirect levels are attributed too, with
+        each level earning half the level before it. Until purchases complete during early access,
+        rewards shown are potential.
       </>
     ),
   },

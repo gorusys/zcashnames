@@ -3,8 +3,8 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { verifyNetworkAccess } from "@/lib/beta/actions";
+import { getWaitlistStats } from "@/lib/leaders/leaders";
 import { getHomeStats } from "@/lib/zns/resolve";
-import { getWaitlistStats } from "@/lib/waitlist/waitlist";
 import type { Network } from "@/lib/zns/name";
 
 type StatusState = "mainnet" | "testnet" | "waitlist";

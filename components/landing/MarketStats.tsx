@@ -17,7 +17,7 @@ export default function MarketStats() {
             key: "waitlist" as const,
             label: "Waitlist",
             value: data.stats.waitlist.toLocaleString(),
-            helpText: "Total number of people on the ZcashNames waitlist.",
+            helpText: "Number of people gaining early access to claim their ZcashName.",
           },
           {
             key: "referred" as const,
@@ -44,7 +44,7 @@ export default function MarketStats() {
                 {" "}{data.stats.rewardsPot}
               </>
             ),
-            helpText: "Get 0.05 ZEC for every name sold using your waitlist referral link.",
+            helpText: "Estimated total rewards to be issued when names are purchased during early access period.",
           },
         ]
       : data?.mode === "search"
