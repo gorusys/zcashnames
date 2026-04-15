@@ -160,7 +160,7 @@ export default function ReferralDashboardPage() {
   const [projectionOpen, setProjectionOpen] = useState(false);
   const [referralLevelFilter, setReferralLevelFilter] = useState<"all" | number>("all");
   const [visibleReferralRows, setVisibleReferralRows] = useState(10);
-  const [activeMetricKey, setActiveMetricKey] = useState<"indirect" | "payout" | null>(null);
+  const [activeMetricKey, setActiveMetricKey] = useState<"referrals" | "direct" | "payout" | null>(null);
   const [directMetricFace, setDirectMetricFace] = useState<"direct" | "indirect">("direct");
   const [prices, setPrices] = useState<PriceByBucket>(DEFAULT_PRICE_BY_BUCKET);
   const [conversions, setConversions] = useState<ConversionByBucket>(DEFAULT_CONVERSION_BY_BUCKET);
@@ -354,17 +354,21 @@ export default function ReferralDashboardPage() {
         <MetricCard
           label="Referrals"
           value={data.totalAttributedReferrals.toLocaleString()}
-          active={activeMetricKey === "indirect"}
-          onClick={() => setActiveMetricKey((current) => (current === "indirect" ? null : "indirect"))}
+          active={activeMetricKey === "referrals"}
+          onClick={() => setActiveMetricKey((current) => (current === "referrals" ? null : "referrals"))}
         />
         <MetricCard
           label={directMetricFace === "direct" ? "Direct" : "Indirect"}
           value={(directMetricFace === "direct" ? data.directReferrals.length : indirectReferrals).toLocaleString()}
-          ariaLabel={directMetricFace === "direct" ? "Show indirect referrals" : "Show direct referrals"}
+          ariaLabel={`${directMetricFace === "direct" ? "Direct" : "Indirect"} referral help`}
+          actionAriaLabel={directMetricFace === "direct" ? "Show indirect referrals" : "Show direct referrals"}
           flipState={directMetricFace}
           actionIcon={<MetricFlipIcon />}
+          active={activeMetricKey === "direct"}
           onClick={() => {
-            setActiveMetricKey(null);
+            setActiveMetricKey((current) => (current === "direct" ? null : "direct"));
+          }}
+          onActionClick={() => {
             setDirectMetricFace((current) => (current === "direct" ? "indirect" : "direct"));
           }}
         />
@@ -389,13 +393,23 @@ export default function ReferralDashboardPage() {
             color: "var(--market-stats-help-text)",
           }}
         >
-          {activeMetricKey === "indirect" && "All referrals connected to this code across every level."}
-          {activeMetricKey === "payout" && "Projected rewards when all referrals complete purchases."}
+          {activeMetricKey === "referrals" && "All referrals connected to this code across every level."}
+          {activeMetricKey === "direct" &&
+            (directMetricFace === "direct"
+              ? "Direct referrals signed up with this referral code."
+              : "Indirect referrals signed up through this code's referral tree.")}
+          {activeMetricKey === "payout" && "Calculate rewards when referrals complete purchases based on assumptions."}
         </p>
       </div>
 
       <section className="mb-8 grid gap-6">
-        <RewardSchedule model={model} data={data} commissionRate={projection?.commissionRate ?? 0.15} />
+        <RewardSchedule
+          model={model}
+          data={data}
+          commissionRate={projection?.commissionRate ?? 0.15}
+          prices={prices}
+          conversions={conversions}
+        />
 
         <DashboardShell>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -858,21 +872,29 @@ function RewardSchedule({
   model,
   data,
   commissionRate,
+  prices,
+  conversions,
 }: {
   model: ProjectionModel;
   data: ReferralDashboardData;
   commissionRate: number;
+  prices: PriceByBucket;
+  conversions: ConversionByBucket;
 }) {
   const depthCountMap = new Map(data.depthCounts.map((row) => [row.depth, row.count]));
-  const fixedLevels = Array.from({ length: Math.max(3, data.maxDepth) }, (_, index) => index + 1);
+  const levels = Array.from({ length: Math.max(3, data.maxDepth) }, (_, index) => index + 1);
   const recentCountsByDepth = buildRecentCountsByDepth(data.descendants);
   const commissionRows = [
-    { label: "0+ referrals", value: "15% commission", rate: 0.15 },
-    { label: "500+ referrals", value: "18% commission", rate: 0.18 },
-    { label: "1,500+ referrals", value: "20% commission", rate: 0.2 },
-    { label: "3,000+ referrals", value: "25% commission", rate: 0.25 },
-    { label: "5,000+ referrals", value: "30% commission", rate: 0.3 },
+    { min: 0, nextAt: 500, label: "0-500", value: "15% commission", rate: 0.15 },
+    { min: 500, nextAt: 1500, label: "500-1,500", value: "18% commission", rate: 0.18 },
+    { min: 1500, nextAt: 3000, label: "1,500-3,000", value: "20% commission", rate: 0.2 },
+    { min: 3000, nextAt: 5000, label: "3,000-5,000", value: "25% commission", rate: 0.25 },
+    { min: 5000, nextAt: null, label: "5,000+", value: "30% commission", rate: 0.3 },
   ];
+  const nextCommissionTier = commissionRows.find((row) => row.min > data.totalAttributedReferrals) ?? null;
+  const referralsToNextTier = nextCommissionTier
+    ? Math.max(0, nextCommissionTier.min - data.totalAttributedReferrals)
+    : 0;
 
   return (
     <DashboardShell>
@@ -882,63 +904,77 @@ function RewardSchedule({
           <p className="mt-1 text-sm text-fg-muted">
             {model === "fixed"
               ? "Fixed rewards start at 0.05 ZEC for level I and halve each level."
-              : "Commission is based on total attributed referrals across every level."}
+              : `You are earning ${formatPercent(
+                  commissionRate,
+                )} commission on all referrals, both direct and indirect. ${
+                  nextCommissionTier
+                    ? `Get ${referralsToNextTier.toLocaleString()} more ${pluralize(
+                        referralsToNextTier,
+                        "referral",
+                      )} to earn ${formatPercent(nextCommissionTier.rate)}.`
+                    : "You are at the top commission tier."
+                }`}
           </p>
+          {model === "commission" && (
+            <details className="mt-1 text-xs text-fg-muted">
+              <summary className="cursor-pointer font-medium text-fg-muted underline-offset-2 hover:underline">
+                Learn more
+              </summary>
+              <div className="mt-2 grid max-w-xs grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <span className="text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">Refs</span>
+                <span className="text-right text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">Rate</span>
+                {commissionRows.map((row) => (
+                  <CommissionTierRow key={row.label} label={row.label} rate={row.rate} active={row.rate === commissionRate} />
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       </div>
 
-      {model === "fixed" ? (
-        <div className="mt-5 max-w-full overflow-x-auto">
-          <div className="grid min-w-[460px] gap-3">
-            <div className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-center text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
-              <span className="text-left">Lvl</span>
-              <span>Refs</span>
-              <span>24h</span>
-              <span>7d</span>
-              <span>30d</span>
-              <span>Rewards</span>
-            </div>
-            {fixedLevels.map((level) => (
-              <FixedScheduleRow
-                key={level}
-                level={level}
-                attributedCount={depthCountMap.get(level) ?? 0}
-                recentCounts={recentCountsByDepth.get(level) ?? { day: 0, week: 0, month: 0 }}
-              />
-            ))}
+      <div className="mt-5 max-w-full overflow-x-auto">
+        <div className="grid min-w-[460px] gap-3">
+          <div className="grid grid-cols-[3rem_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-center text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
+            <span className="text-left">Level</span>
+            <span>Refs</span>
+            <span>24h</span>
+            <span>7d</span>
+            <span>30d</span>
+            <span>Rewards</span>
           </div>
-        </div>
-      ) : (
-        <div className="mt-5 grid gap-3 text-sm">
-          {commissionRows.map((row) => (
-            <RuleRow
-              key={row.label}
-              label={row.label}
-              value={row.value}
-              active={row.rate === commissionRate}
+          {levels.map((level) => (
+            <ScheduleRow
+              key={level}
+              level={level}
+              attributedCount={depthCountMap.get(level) ?? 0}
+              recentCounts={recentCountsByDepth.get(level) ?? { day: 0, week: 0, month: 0 }}
+              reward={
+                model === "fixed"
+                  ? fixedRewardForDepth(level) * (depthCountMap.get(level) ?? 0)
+                  : commissionRewardForDepth(level, data, prices, conversions, commissionRate)
+              }
             />
           ))}
         </div>
-      )}
+      </div>
     </DashboardShell>
   );
 }
 
-function FixedScheduleRow({
+function ScheduleRow({
   level,
   attributedCount,
   recentCounts,
+  reward,
 }: {
   level: number;
   attributedCount: number;
   recentCounts: { day: number; week: number; month: number };
+  reward: number;
 }) {
-  const rate = fixedRewardForDepth(level);
-  const projectedTotal = rate * attributedCount;
-
   return (
     <div
-      className="grid grid-cols-[1.5rem_1fr_1fr_1fr_1fr_1fr] items-center gap-3 rounded-lg border px-3 py-2"
+      className="grid grid-cols-[3rem_1fr_1fr_1fr_1fr_1fr] items-center gap-3 rounded-lg border px-3 py-2"
       style={{ borderColor: "var(--leaders-card-border)" }}
     >
       <p className="text-left text-sm font-bold text-fg-heading">{toRoman(level)}</p>
@@ -946,9 +982,26 @@ function FixedScheduleRow({
       <ScheduleMetric value={formatDelta(recentCounts.day)} muted={recentCounts.day === 0} />
       <ScheduleMetric value={formatDelta(recentCounts.week)} muted={recentCounts.week === 0} />
       <ScheduleMetric value={formatDelta(recentCounts.month)} muted={recentCounts.month === 0} />
-      <ScheduleMetric value={<ZecAmount value={projectedTotal} />} strong />
+      <ScheduleMetric value={<ZecAmount value={reward} />} strong />
     </div>
   );
+}
+
+function commissionRewardForDepth(
+  level: number,
+  data: ReferralDashboardData,
+  prices: PriceByBucket,
+  conversions: ConversionByBucket,
+  commissionRate: number,
+): number {
+  return data.descendants
+    .filter((entry) => entry.depth === level)
+    .reduce((total, entry) => {
+      const bucket = getNameLengthBucket(entry.name);
+      const conversionRate = Math.max(0, conversions[bucket]) / 100;
+      const price = Number.isFinite(prices[bucket]) ? prices[bucket] : 0;
+      return total + price * conversionRate * commissionRate;
+    }, 0);
 }
 
 function ScheduleMetric({
@@ -990,6 +1043,10 @@ function buildRecentCountsByDepth(
 
 function formatDelta(value: number): string {
   return value > 0 ? `+${value.toLocaleString()}` : "+0";
+}
+
+function pluralize(count: number, singular: string): string {
+  return count === 1 ? singular : `${singular}s`;
 }
 
 function ZecAmount({ value }: { value: number }) {
@@ -1054,44 +1111,57 @@ function MetricCard({
   active = false,
   actionIcon,
   ariaLabel,
+  actionAriaLabel,
   flipState,
   onClick,
+  onActionClick,
 }: {
   label: string;
   value: ReactNode;
   active?: boolean;
   actionIcon?: ReactNode;
   ariaLabel?: string;
+  actionAriaLabel?: string;
   flipState?: "direct" | "indirect";
   onClick?: () => void;
+  onActionClick?: () => void;
 }) {
   return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      onClick={onClick}
-      className="group relative flex cursor-pointer flex-col items-center gap-1 overflow-hidden rounded-2xl border px-6 py-5 text-center transition-colors [perspective:700px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)]"
+    <div
+      className="group relative overflow-hidden rounded-2xl border text-center transition-colors [perspective:700px]"
       style={{
         background: active ? "var(--market-stats-segment-active-bg)" : "var(--leaders-card-bg)",
         borderColor: "var(--leaders-card-border)",
       }}
     >
       {actionIcon && (
-        <span className="absolute right-2.5 top-2.5 text-fg-muted opacity-70 transition-opacity group-hover:opacity-100" aria-hidden="true">
+        <button
+          type="button"
+          aria-label={actionAriaLabel}
+          onClick={onActionClick}
+          className="absolute right-2.5 top-2.5 z-10 cursor-pointer rounded-md p-1 text-fg-muted opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--partner-card-border-hover)]"
+        >
           {actionIcon}
-        </span>
+        </button>
       )}
-      <span
-        className={`flex flex-col items-center gap-1 transition-transform duration-300 ease-out motion-reduce:transition-none ${
-          flipState === "indirect" ? "[transform:rotateY(360deg)]" : "[transform:rotateY(0deg)]"
-        }`}
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        onClick={onClick}
+        className="flex h-full w-full cursor-pointer flex-col items-center gap-1 px-6 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--partner-card-border-hover)]"
       >
-        <span className="tabular-nums text-[clamp(1.4rem,2.5vw,2rem)] font-semibold leading-none tracking-tight text-fg-heading">
-          {value}
+        <span
+          className={`flex flex-col items-center gap-1 transition-transform duration-300 ease-out motion-reduce:transition-none ${
+            flipState === "indirect" ? "[transform:rotateY(360deg)]" : "[transform:rotateY(0deg)]"
+          }`}
+        >
+          <span className="tabular-nums text-[clamp(1.4rem,2.5vw,2rem)] font-semibold leading-none tracking-tight text-fg-heading">
+            {value}
+          </span>
+          <span className="text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">{label}</span>
         </span>
-        <span className="text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">{label}</span>
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -1185,6 +1255,17 @@ function RuleRow({ label, value, active = false }: { label: string; value: strin
       <span className="font-medium text-fg-heading">{label}</span>
       <span className="tabular-nums text-fg-body">{value}</span>
     </div>
+  );
+}
+
+function CommissionTierRow({ label, rate, active = false }: { label: string; rate: number; active?: boolean }) {
+  return (
+    <>
+      <span className={active ? "font-semibold text-fg-heading" : "text-fg-body"}>{label}</span>
+      <span className={`text-right tabular-nums ${active ? "font-semibold text-fg-heading" : "text-fg-body"}`}>
+        {formatPercent(rate)}
+      </span>
+    </>
   );
 }
 
@@ -1295,6 +1376,11 @@ function formatZec(value: number): string {
   if (value >= 10) return value.toFixed(1);
   if (value >= 1) return value.toFixed(2);
   return value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function formatPercent(value: number): string {
+  if (!Number.isFinite(value)) return "0%";
+  return `${Math.round(value * 100)}%`;
 }
 
 function Skeleton({ w = "w-12" }: { w?: string }) {
