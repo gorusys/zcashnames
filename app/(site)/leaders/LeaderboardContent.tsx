@@ -8,9 +8,11 @@ import {
   AreaChart,
   CartesianGrid,
   Line,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
+  usePlotArea,
+  useXAxisScale,
+  useYAxisScale,
   XAxis,
   YAxis,
 } from "recharts";
@@ -27,12 +29,14 @@ import {
 } from "@/lib/leaders/leaders";
 
 const REWARDS_CHART_COLOR = "var(--leaders-area-rewards)";
-const GUIDE_LINE_PROPS = {
-  strokeDasharray: "4 4",
-  strokeWidth: 1,
-  opacity: 0.35,
-  ifOverflow: "extendDomain" as const,
-};
+type AxisSide = "left" | "right";
+
+interface EndpointGuideLine {
+  yAxisId: string;
+  value: number;
+  color: string;
+  side: AxisSide;
+}
 
 function getActiveChartPoint<T extends { date: string }>(state: unknown, data: T[]): T | null {
   const chartState = state as
@@ -50,6 +54,60 @@ function getActiveChartPoint<T extends { date: string }>(state: unknown, data: T
   }
 
   return null;
+}
+
+function AxisEndpointGuideLines({
+  point,
+  lines,
+}: {
+  point: { date: string } | null;
+  lines: EndpointGuideLine[];
+}) {
+  const plotArea = usePlotArea();
+  const xScale = useXAxisScale();
+
+  if (!point || !plotArea || !xScale) return null;
+
+  const x = xScale(point.date, { position: "middle" });
+  if (x === undefined) return null;
+
+  return (
+    <g pointerEvents="none">
+      {lines.map((line) => (
+        <AxisEndpointGuideLine key={`${line.yAxisId}-${line.color}`} x={x} plotArea={plotArea} line={line} />
+      ))}
+    </g>
+  );
+}
+
+function AxisEndpointGuideLine({
+  x,
+  plotArea,
+  line,
+}: {
+  x: number;
+  plotArea: { x: number; width: number };
+  line: EndpointGuideLine;
+}) {
+  const yScale = useYAxisScale(line.yAxisId);
+  const y = yScale?.(line.value);
+
+  if (y === undefined) return null;
+
+  const axisX = line.side === "left" ? plotArea.x : plotArea.x + plotArea.width;
+
+  return (
+    <line
+      x1={x}
+      x2={axisX}
+      y1={y}
+      y2={y}
+      stroke={line.color}
+      strokeDasharray="4 4"
+      strokeWidth={1}
+      opacity={0.35}
+    />
+  );
 }
 
 function ZecSymbol({ className }: { className?: string }) {
@@ -445,28 +503,6 @@ export default function LeaderboardContent() {
                 axisLine={{ stroke: "var(--border)" }}
                 allowDecimals={false}
               />
-              {chartGuidePoint && (
-                <>
-                  <ReferenceLine
-                    yAxisId="rewards"
-                    y={chartGuidePoint.rewardsPot}
-                    stroke={REWARDS_CHART_COLOR}
-                    {...GUIDE_LINE_PROPS}
-                  />
-                  <ReferenceLine
-                    yAxisId="waitlist"
-                    y={chartGuideWaitlist}
-                    stroke="var(--leaders-area-non-referred)"
-                    {...GUIDE_LINE_PROPS}
-                  />
-                  <ReferenceLine
-                    yAxisId="waitlist"
-                    y={chartGuidePoint.referred}
-                    stroke="var(--leaders-area-referred)"
-                    {...GUIDE_LINE_PROPS}
-                  />
-                </>
-              )}
               <Tooltip content={<ChartTooltip />} />
               <Area
                 yAxisId="waitlist"
@@ -494,6 +530,24 @@ export default function LeaderboardContent() {
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 4, fill: REWARDS_CHART_COLOR }}
+              />
+              <AxisEndpointGuideLines
+                point={chartGuidePoint}
+                lines={[
+                  { yAxisId: "rewards", value: chartGuidePoint?.rewardsPot ?? 0, color: REWARDS_CHART_COLOR, side: "left" },
+                  {
+                    yAxisId: "waitlist",
+                    value: chartGuideWaitlist,
+                    color: "var(--leaders-area-non-referred)",
+                    side: "right",
+                  },
+                  {
+                    yAxisId: "waitlist",
+                    value: chartGuidePoint?.referred ?? 0,
+                    color: "var(--leaders-area-referred)",
+                    side: "right",
+                  },
+                ]}
               />
             </AreaChart>
           </ResponsiveContainer>
