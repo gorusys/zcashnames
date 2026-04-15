@@ -3,12 +3,7 @@
 import {
   resolve,
   fetchClaimCost,
-  buildClaimMemo,
-  buildBuyMemo,
-  buildListMemo,
-  buildDelistMemo,
-  buildReleaseMemo,
-  buildUpdateMemo,
+  getZns,
 } from "@/lib/zns/client";
 import {
   buildSignedClaimMemo,
@@ -129,22 +124,19 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
 
         const costZats = await fetchClaimCost(name, network);
         if (costZats == null) return { ok: false, error: "Pricing unavailable - indexer may be down." };
-        const memo =
-          authMode === "sovereign"
-            ? (() => {
-                const sig = input.sovereignSignature?.trim();
-                const pub = input.sovereignPubkey?.trim();
-                if (!sig) throw new Error("Signature is required for sovereign claim.");
-                if (!pub) throw new Error("Public key is required for sovereign claim.");
-                return `${buildClaimMemo(name, address, sig)}:${pub}`;
-              })()
-            : await buildSignedClaimMemo(name, address, network);
-        return {
-          ok: true,
-          memo,
-          amount: costZats,
-          amountZec: zatsToZec(costZats),
-        };
+
+        let memo: string;
+        if (authMode === "sovereign") {
+          const sig = input.sovereignSignature?.trim();
+          const pub = input.sovereignPubkey?.trim();
+          if (!sig) throw new Error("Signature is required for sovereign claim.");
+          if (!pub) throw new Error("Public key is required for sovereign claim.");
+          const zns = await getZns(network);
+          memo = zns.completeClaim(name, address, sig, pub).memo;
+        } else {
+          memo = await buildSignedClaimMemo(name, address, network);
+        }
+        return { ok: true, memo, amount: costZats, amountZec: zatsToZec(costZats) };
       }
       case "buy": {
         const address = input.address?.trim();
@@ -153,102 +145,85 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
         if (!addrCheck.valid) return { ok: false, error: addrCheck.warning || "Invalid address format." };
         const buyReg = await resolve(name, network);
         if (!buyReg?.listing) return { ok: false, error: "Name is not listed for sale." };
-        const memo =
-          authMode === "sovereign"
-            ? (() => {
-                const sig = input.sovereignSignature?.trim();
-                const pub = input.sovereignPubkey?.trim();
-                if (!sig) throw new Error("Signature is required for sovereign buy.");
-                if (!pub) throw new Error("Public key is required for sovereign buy.");
-                return `${buildBuyMemo(name, address, sig)}:${pub}`;
-              })()
-            : await buildSignedBuyMemo(name, address, network);
-        return {
-          ok: true,
-          memo,
-          amount: buyReg.listing.price,
-          amountZec: zatsToZec(buyReg.listing.price),
-        };
+
+        let memo: string;
+        if (authMode === "sovereign") {
+          const sig = input.sovereignSignature?.trim();
+          const pub = input.sovereignPubkey?.trim();
+          if (!sig) throw new Error("Signature is required for sovereign buy.");
+          if (!pub) throw new Error("Public key is required for sovereign buy.");
+          const zns = await getZns(network);
+          memo = zns.completeBuy(name, address, sig, pub).memo;
+        } else {
+          memo = await buildSignedBuyMemo(name, address, network);
+        }
+        return { ok: true, memo, amount: buyReg.listing.price, amountZec: zatsToZec(buyReg.listing.price) };
       }
       case "update": {
         const address = input.address?.trim();
         if (!address) return { ok: false, error: "Address is required for update." };
         const addrCheck = validateAddress(address);
         if (!addrCheck.valid) return { ok: false, error: addrCheck.warning || "Invalid address format." };
-        const memo =
-          authMode === "sovereign"
-            ? (() => {
-                const sig = input.sovereignSignature?.trim();
-                if (!sig) throw new Error("Signature is required for sovereign update.");
-                const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
-                const nonce = (reg?.nonce ?? 0) + 1;
-                return `${buildUpdateMemo(name, address, nonce, sig)}:${pub}`;
-              })()
-            : (await buildSignedUpdateMemo(name, address, network)).memo;
-        return {
-          ok: true,
-          memo,
-          amount: 100_000,
-          amountZec: 0.001,
-        };
+
+        let memo: string;
+        if (authMode === "sovereign") {
+          const sig = input.sovereignSignature?.trim();
+          if (!sig) throw new Error("Signature is required for sovereign update.");
+          const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
+          const nonce = (reg?.nonce ?? 0) + 1;
+          const zns = await getZns(network);
+          memo = zns.completeUpdate(name, address, nonce, sig, pub ?? undefined).memo;
+        } else {
+          memo = (await buildSignedUpdateMemo(name, address, network)).memo;
+        }
+        return { ok: true, memo, amount: 100_000, amountZec: 0.001 };
       }
       case "list": {
         const maxZats = MAX_LIST_FOR_SALE_AMOUNT * 100_000_000;
         if (!input.priceZats || input.priceZats < 100_000 || input.priceZats > maxZats) {
           return { ok: false, error: "Price must be between 0.001 and 21,000,000 ZEC." };
         }
-        const memo =
-          authMode === "sovereign"
-            ? (() => {
-                const sig = input.sovereignSignature?.trim();
-                if (!sig) throw new Error("Signature is required for sovereign list.");
-                const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
-                const nonce = (reg?.nonce ?? 0) + 1;
-                return `${buildListMemo(name, input.priceZats!, nonce, sig)}:${pub}`;
-              })()
-            : (await buildSignedListMemo(name, input.priceZats, network)).memo;
-        return {
-          ok: true,
-          memo,
-          amount: 100_000,
-          amountZec: 0.001,
-        };
+
+        let memo: string;
+        if (authMode === "sovereign") {
+          const sig = input.sovereignSignature?.trim();
+          if (!sig) throw new Error("Signature is required for sovereign list.");
+          const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
+          const nonce = (reg?.nonce ?? 0) + 1;
+          const zns = await getZns(network);
+          memo = zns.completeList(name, input.priceZats, nonce, sig, pub ?? undefined).memo;
+        } else {
+          memo = (await buildSignedListMemo(name, input.priceZats, network)).memo;
+        }
+        return { ok: true, memo, amount: 100_000, amountZec: 0.001 };
       }
       case "delist": {
-        const memo =
-          authMode === "sovereign"
-            ? (() => {
-                const sig = input.sovereignSignature?.trim();
-                if (!sig) throw new Error("Signature is required for sovereign delist.");
-                const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
-                const nonce = (reg?.nonce ?? 0) + 1;
-                return `${buildDelistMemo(name, nonce, sig)}:${pub}`;
-              })()
-            : (await buildSignedDelistMemo(name, network)).memo;
-        return {
-          ok: true,
-          memo,
-          amount: 100_000,
-          amountZec: 0.001,
-        };
+        let memo: string;
+        if (authMode === "sovereign") {
+          const sig = input.sovereignSignature?.trim();
+          if (!sig) throw new Error("Signature is required for sovereign delist.");
+          const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
+          const nonce = (reg?.nonce ?? 0) + 1;
+          const zns = await getZns(network);
+          memo = zns.completeDelist(name, nonce, sig, pub ?? undefined).memo;
+        } else {
+          memo = (await buildSignedDelistMemo(name, network)).memo;
+        }
+        return { ok: true, memo, amount: 100_000, amountZec: 0.001 };
       }
       case "release": {
-        const memo =
-          authMode === "sovereign"
-            ? (() => {
-                const sig = input.sovereignSignature?.trim();
-                if (!sig) throw new Error("Signature is required for sovereign release.");
-                const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
-                const nonce = (reg?.nonce ?? 0) + 1;
-                return `${buildReleaseMemo(name, nonce, sig)}:${pub}`;
-              })()
-            : (await buildSignedReleaseMemo(name, network)).memo;
-        return {
-          ok: true,
-          memo,
-          amount: 100_000,
-          amountZec: 0.001,
-        };
+        let memo: string;
+        if (authMode === "sovereign") {
+          const sig = input.sovereignSignature?.trim();
+          if (!sig) throw new Error("Signature is required for sovereign release.");
+          const pub = reg?.pubkey ?? input.sovereignPubkey?.trim();
+          const nonce = (reg?.nonce ?? 0) + 1;
+          const zns = await getZns(network);
+          memo = zns.completeRelease(name, nonce, sig, pub ?? undefined).memo;
+        } else {
+          memo = (await buildSignedReleaseMemo(name, network)).memo;
+        }
+        return { ok: true, memo, amount: 100_000, amountZec: 0.001 };
       }
     }
   } catch (err) {

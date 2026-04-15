@@ -1,7 +1,7 @@
 "use client";
 
 import type { ResolveName } from "@/lib/types";
-import type { ZnsEvent } from "@/lib/zns/client";
+import type { Event } from "@/lib/zns/client";
 import ActionBadge from "@/components/ActionBadge";
 
 export default function ExplorerNameDetail({
@@ -13,7 +13,7 @@ export default function ExplorerNameDetail({
 }: {
   query: string;
   result: ResolveName | null;
-  events: ZnsEvent[];
+  events: Event[];
   isPending: boolean;
   onClear: () => void;
 }) {

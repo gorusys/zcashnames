@@ -8,15 +8,7 @@
 
 import crypto from "node:crypto";
 import type { Network } from "./name";
-import { resolve, buildListMemo, buildDelistMemo, buildReleaseMemo, buildUpdateMemo, buildClaimMemo, buildBuyMemo } from "./client";
-import {
-  listPayload,
-  delistPayload,
-  releasePayload,
-  updatePayload,
-  claimPayload,
-  buyPayload,
-} from "./client";
+import { getZns, resolve } from "./client";
 
 let cachedKeyPair: crypto.KeyObject | null = null;
 
@@ -47,96 +39,76 @@ export function adminSign(payload: string): string {
   return sig.toString("base64");
 }
 
-/**
- * Build a complete signed list memo with current nonce.
- * Resolves the name to get the current nonce, signs, and returns the memo.
- */
-export async function buildSignedListMemo(
-  name: string,
-  priceZats: number,
-  network: Network = "testnet"
-): Promise<{ memo: string; nonce: number }> {
-  const reg = await resolve(name, network);
-  if (!reg) throw new Error(`Name "${name}" is not registered.`);
-  const nonce = reg.nonce + 1;
-  const payload = listPayload(name, priceZats, nonce);
-  const sig = adminSign(payload);
-  return { memo: buildListMemo(name, priceZats, nonce, sig), nonce };
-}
-
-/**
- * Build a complete signed delist memo with current nonce.
- */
-export async function buildSignedDelistMemo(
-  name: string,
-  network: Network = "testnet"
-): Promise<{ memo: string; nonce: number }> {
-  const reg = await resolve(name, network);
-  if (!reg) throw new Error(`Name "${name}" is not registered.`);
-  const nonce = reg.nonce + 1;
-  const payload = delistPayload(name, nonce);
-  const sig = adminSign(payload);
-  return { memo: buildDelistMemo(name, nonce, sig), nonce };
-}
-
-/**
- * Build a complete signed release memo with current nonce.
- * Permanently removes a name registration from the indexer.
- */
-export async function buildSignedReleaseMemo(
-  name: string,
-  network: Network = "testnet"
-): Promise<{ memo: string; nonce: number }> {
-  const reg = await resolve(name, network);
-  if (!reg) throw new Error(`Name "${name}" is not registered.`);
-  const nonce = reg.nonce + 1;
-  const payload = releasePayload(name, nonce);
-  const sig = adminSign(payload);
-  return { memo: buildReleaseMemo(name, nonce, sig), nonce };
-}
-
-/**
- * Build a complete signed update memo with current nonce.
- */
-export async function buildSignedUpdateMemo(
-  name: string,
-  newUa: string,
-  network: Network = "testnet"
-): Promise<{ memo: string; nonce: number }> {
-  const reg = await resolve(name, network);
-  if (!reg) throw new Error(`Name "${name}" is not registered.`);
-  const nonce = reg.nonce + 1;
-  const payload = updatePayload(name, newUa, nonce);
-  const sig = adminSign(payload);
-  return { memo: buildUpdateMemo(name, newUa, nonce, sig), nonce };
-}
-
-/**
- * Build a complete signed claim memo for an available name.
- */
 export async function buildSignedClaimMemo(
   name: string,
   userUa: string,
   network: Network = "testnet"
 ): Promise<string> {
-  const reg = await resolve(name, network);
+  const [reg, zns] = await Promise.all([resolve(name, network), getZns(network)]);
   if (reg) throw new Error(`Name "${name}" is already registered.`);
-  const payload = claimPayload(name, userUa);
+  const { payload } = zns.prepareClaim(name, userUa);
   const sig = adminSign(payload);
-  return buildClaimMemo(name, userUa, sig);
+  return zns.completeClaim(name, userUa, sig).memo;
 }
 
-/**
- * Build a complete signed buy memo for a listed name.
- */
 export async function buildSignedBuyMemo(
   name: string,
   buyerUa: string,
   network: Network = "testnet"
 ): Promise<string> {
-  const reg = await resolve(name, network);
+  const [reg, zns] = await Promise.all([resolve(name, network), getZns(network)]);
   if (!reg?.listing) throw new Error(`Name "${name}" is not listed for sale.`);
-  const payload = buyPayload(name, buyerUa);
+  const { payload } = zns.prepareBuy(name, buyerUa);
   const sig = adminSign(payload);
-  return buildBuyMemo(name, buyerUa, sig);
+  return zns.completeBuy(name, buyerUa, sig).memo;
+}
+
+export async function buildSignedListMemo(
+  name: string,
+  priceZats: number,
+  network: Network = "testnet"
+): Promise<{ memo: string; nonce: number }> {
+  const [reg, zns] = await Promise.all([resolve(name, network), getZns(network)]);
+  if (!reg) throw new Error(`Name "${name}" is not registered.`);
+  const nonce = reg.nonce + 1;
+  const { payload } = zns.prepareList(name, priceZats, nonce);
+  const sig = adminSign(payload);
+  return { memo: zns.completeList(name, priceZats, nonce, sig).memo, nonce };
+}
+
+export async function buildSignedDelistMemo(
+  name: string,
+  network: Network = "testnet"
+): Promise<{ memo: string; nonce: number }> {
+  const [reg, zns] = await Promise.all([resolve(name, network), getZns(network)]);
+  if (!reg) throw new Error(`Name "${name}" is not registered.`);
+  const nonce = reg.nonce + 1;
+  const { payload } = zns.prepareDelist(name, nonce);
+  const sig = adminSign(payload);
+  return { memo: zns.completeDelist(name, nonce, sig).memo, nonce };
+}
+
+export async function buildSignedReleaseMemo(
+  name: string,
+  network: Network = "testnet"
+): Promise<{ memo: string; nonce: number }> {
+  const [reg, zns] = await Promise.all([resolve(name, network), getZns(network)]);
+  if (!reg) throw new Error(`Name "${name}" is not registered.`);
+  const nonce = reg.nonce + 1;
+  const { payload } = zns.prepareRelease(name, nonce);
+  const sig = adminSign(payload);
+  return { memo: zns.completeRelease(name, nonce, sig).memo, nonce };
+}
+
+export async function buildSignedUpdateMemo(
+  name: string,
+  newUa: string,
+  network: Network = "testnet"
+): Promise<{ memo: string; nonce: number }> {
+  const [reg, zns] = await Promise.all([resolve(name, network), getZns(network)]);
+  if (!reg) throw new Error(`Name "${name}" is not registered.`);
+  const nonce = reg.nonce + 1;
+  const { payload } = zns.prepareUpdate(name, newUa, nonce);
+  const sig = adminSign(payload);
+  return { memo: zns.completeUpdate(name, newUa, nonce, sig).memo, nonce };
 }

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { getEvents } from "@/lib/zns/resolve";
 import { zatsToZec } from "@/lib/zns/name";
 import type { Network } from "@/lib/zns/name";
-import type { ZnsEvent, ZnsListing } from "@/lib/zns/client";
+import type { Event, VerifiedListing } from "@/lib/zns/client";
 import type { Environment, SortBy } from "./ExplorerToolbar";
 import ActionBadge from "@/components/ActionBadge";
 
@@ -12,8 +12,8 @@ export type ExplorerTab = "all" | "registered" | "forsale" | "admin" | "CLAIM" |
 
 export type TabCounts = Record<string, number>;
 
-export type TaggedEvent = ZnsEvent & { network: Network };
-export type TaggedListing = ZnsListing & { network: Network };
+export type TaggedEvent = Event & { network: Network };
+export type TaggedListing = VerifiedListing & { network: Network };
 
 const ACTION_TYPES = ["CLAIM", "BUY", "LIST", "DELIST", "UPDATE", "RELEASE"] as const;
 

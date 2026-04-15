@@ -6,7 +6,7 @@ import ExplorerToolbar, { type Environment, type SortBy } from "./ExplorerToolba
 import ExplorerContent, { type ExplorerTab, type TabCounts, type TaggedEvent, type TaggedListing } from "./ExplorerContent";
 import ExplorerNameDetail from "./ExplorerNameDetail";
 import type { ResolveName } from "@/lib/types";
-import type { ZnsEvent } from "@/lib/zns/client";
+import type { Event } from "@/lib/zns/client";
 
 const PRIMARY_TABS: { key: ExplorerTab; label: string }[] = [
   { key: "all", label: "All" },
@@ -42,7 +42,7 @@ interface ExplorerShellProps {
   environment: Environment;
   nameQuery: string;
   nameResult: ResolveName | null;
-  nameEvents: (ZnsEvent & { network: string })[];
+  nameEvents: (Event & { network: string })[];
 }
 
 export default function ExplorerShell({
