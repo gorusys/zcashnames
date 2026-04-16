@@ -398,7 +398,10 @@ export default function ReferralDashboardPage() {
             (directMetricFace === "direct"
               ? "Direct referrals signed up with this referral code."
               : "Indirect referrals signed up through this code's referral tree.")}
-          {activeMetricKey === "payout" && "Calculate rewards when referrals complete purchases based on assumptions."}
+          {activeMetricKey === "payout" &&
+            (model === "commission"
+              ? "Project rewards if all referrals purchase names during early access."
+              : "Calculate rewards when referrals complete purchases based on assumptions.")}
         </p>
       </div>
 
@@ -531,7 +534,7 @@ export default function ReferralDashboardPage() {
             >
               <span>
                 <span className="block text-xl font-semibold text-fg-heading">Payout Projection</span>
-                <span className="mt-1 block text-sm text-fg-muted">Projected rewards when all referrals complete purchases.</span>
+                <span className="mt-1 block text-sm text-fg-muted">Project rewards based on assumptions.</span>
               </span>
               <span className="shrink-0 text-sm font-semibold uppercase tracking-[0.08em] text-fg-muted">
                 {projectionOpen ? "Collapse" : "Expand"}
