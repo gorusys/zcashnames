@@ -6,11 +6,23 @@ import "nextra-theme-docs/style.css";
 export const metadata = {
   title: "ZcashNames Docs",
   description: "Documentation for the Zcash Name Service",
+  icons: { icon: "/landing/z5.png" },
 };
 
 const navbar = (
   <Navbar
-    logo={<b>ZcashNames Docs</b>}
+    logo={
+      <span className="docs-navbar-logo" aria-label="ZcashNames Docs">
+        <img
+          src="/landing/zcashnames-primary-logo-black-transparent.png"
+          alt=""
+          width={28}
+          height={30}
+          className="docs-navbar-logo-mark"
+        />
+        <b>ZcashNames Docs</b>
+      </span>
+    }
     projectLink="https://github.com/zcashme/zcashnames"
   />
 );

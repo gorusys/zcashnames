@@ -16,3 +16,20 @@
 
 @source "../../components/docs/**/*.{ts,tsx}";
 @source "../../content/**/*.{md,mdx}";
+
+.docs-navbar-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.docs-navbar-logo-mark {
+  display: block;
+  width: 1.75rem;
+  height: 1.875rem;
+  object-fit: contain;
+}
+
+:is(html.dark, [data-theme="dark"]) .docs-navbar-logo-mark {
+  filter: invert(1);
+}
