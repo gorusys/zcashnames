@@ -659,28 +659,28 @@ export default function ReferralDashboardPage() {
                         {accessPromptMode === "referrals" ? (
                           <form
                             onSubmit={submitAccessPin}
-                            className="mx-auto inline-block text-left"
+                            className="mx-auto flex w-full max-w-xs flex-col items-center text-center"
                           >
                             <label className="block text-sm font-semibold text-fg-heading" htmlFor="referrals-access-code">
                               Enter access code
                             </label>
-                            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                              <input
-                                id="referrals-access-code"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                autoComplete="one-time-code"
-                                maxLength={6}
-                                value={commissionPin}
-                                onChange={(event) => {
-                                  setCommissionPin(event.target.value.replace(/\D/g, "").slice(0, 6));
-                                  setCommissionError("");
-                                  setCommissionPinMessage("");
-                                }}
-                                className="w-28 rounded-lg border bg-transparent px-3 py-2 text-center font-mono text-base tracking-[0.18em] text-fg-heading"
-                                style={{ borderColor: "var(--leaders-card-border)" }}
-                              />
+                            <input
+                              id="referrals-access-code"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              autoComplete="one-time-code"
+                              maxLength={6}
+                              value={commissionPin}
+                              onChange={(event) => {
+                                setCommissionPin(event.target.value.replace(/\D/g, "").slice(0, 6));
+                                setCommissionError("");
+                                setCommissionPinMessage("");
+                              }}
+                              className="mt-2 w-28 rounded-lg border bg-transparent px-3 py-2 text-center font-mono text-base tracking-[0.18em] text-fg-heading"
+                              style={{ borderColor: "var(--leaders-card-border)" }}
+                            />
+                            <div className="mt-2 flex items-center justify-center gap-2">
                               <button
                                 type="submit"
                                 disabled={commissionPin.length !== 6 || commissionSubmitting}
@@ -696,15 +696,15 @@ export default function ReferralDashboardPage() {
                               >
                                 Cancel
                               </button>
-                              <button
-                                type="button"
-                                className="cursor-pointer px-2 py-2 text-sm font-semibold text-fg-muted underline-offset-2 transition-colors hover:text-fg-heading hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                                disabled={commissionPinRequesting}
-                                onClick={requestCommissionPin}
-                              >
-                                {commissionPinRequesting ? "Sending" : "Forgot pin?"}
-                              </button>
                             </div>
+                            <button
+                              type="button"
+                              className="mt-2 cursor-pointer px-2 py-1 text-sm font-semibold text-fg-muted underline-offset-2 transition-colors hover:text-fg-heading hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={commissionPinRequesting}
+                              onClick={requestCommissionPin}
+                            >
+                              {commissionPinRequesting ? "Sending" : "Forgot pin?"}
+                            </button>
                             {commissionError && <p className="mt-2 text-center text-sm text-fg-muted">{commissionError}</p>}
                             {commissionPinMessage && <p className="mt-2 text-center text-sm text-fg-muted">{commissionPinMessage}</p>}
                           </form>
