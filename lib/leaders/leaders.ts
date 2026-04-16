@@ -7,6 +7,8 @@ import {
   clearCommissionAccessCookie,
   getCommissionPin,
   hasCommissionAccess,
+  hasReferralTableAccess,
+  setReferralTableAccessCookie,
   setCommissionAccessCookie,
   verifyCommissionPin,
 } from "@/lib/leaders/commission-access";
@@ -79,6 +81,10 @@ export type ReferralCommissionUnlockResult =
   | { ok: false; error: string };
 
 export type ReferralCommissionModeResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export type ReferralTableUnlockResult =
   | { ok: true }
   | { ok: false; error: string };
 
@@ -529,11 +535,14 @@ export async function getReferralDashboard(
     const rows = toWaitlistReferralRows(data);
 
     const dashboard = buildReferralDashboard(normalizedCode, rows, scope);
-    const commissionUnlocked = dashboard.root?.cabal
-      ? await hasCommissionAccess(dashboard.referralCode).catch(() => false)
-      : false;
+    const [commissionUnlocked, referralsUnlocked] = await Promise.all([
+      dashboard.root?.cabal
+        ? hasCommissionAccess(dashboard.referralCode).catch(() => false)
+        : false,
+      hasReferralTableAccess(dashboard.referralCode).catch(() => false),
+    ]);
 
-    return { ...dashboard, commissionUnlocked };
+    return { ...dashboard, commissionUnlocked, referralsUnlocked };
   } catch {
     return null;
   }
@@ -577,6 +586,35 @@ export async function lockReferralCommissionMode(): Promise<ReferralCommissionMo
   }
 }
 
+export async function unlockReferralTable(
+  referralCode: string,
+  pin: string,
+): Promise<ReferralTableUnlockResult> {
+  try {
+    const normalizedCode = referralCode.trim();
+    if (!normalizedCode) return { ok: false, error: "Code not recognized." };
+
+    const { data, error } = await db
+      .from("zn_waitlist")
+      .select("referral_code")
+      .eq("referral_code", normalizedCode)
+      .maybeSingle();
+
+    if (error || !data?.referral_code) {
+      return { ok: false, error: "Code not recognized." };
+    }
+
+    if (!verifyCommissionPin(normalizedCode, pin)) {
+      return { ok: false, error: "Code not recognized." };
+    }
+
+    await setReferralTableAccessCookie(normalizedCode);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Code not recognized." };
+  }
+}
+
 export async function requestReferralCommissionPin(
   referralCode: string,
 ): Promise<ReferralCommissionPinRequestResult> {
@@ -586,7 +624,7 @@ export async function requestReferralCommissionPin(
 
     const { data, error } = await db
       .from("zn_waitlist")
-      .select("name, email, referral_code, cabal, commission_pin_email_sent_at")
+      .select("name, email, referral_code, access_pin_email_sent_at")
       .eq("referral_code", normalizedCode)
       .maybeSingle();
 
@@ -595,11 +633,11 @@ export async function requestReferralCommissionPin(
       return { ok: false, error: "Could not send code right now." };
     }
 
-    if (!data || !data.cabal || !data.email || !data.referral_code) {
+    if (!data || !data.email || !data.referral_code) {
       return { ok: true, message: COMMISSION_PIN_SENT_MESSAGE };
     }
 
-    if (wasCommissionPinSentToday(data.commission_pin_email_sent_at)) {
+    if (wasCommissionPinSentToday(data.access_pin_email_sent_at)) {
       return { ok: true, message: COMMISSION_PIN_RATE_LIMIT_MESSAGE };
     }
 
@@ -614,7 +652,7 @@ export async function requestReferralCommissionPin(
 
     const { error: updateError } = await db
       .from("zn_waitlist")
-      .update({ commission_pin_email_sent_at: new Date().toISOString() })
+      .update({ access_pin_email_sent_at: new Date().toISOString() })
       .eq("referral_code", normalizedCode);
 
     if (updateError) {

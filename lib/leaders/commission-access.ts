@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { deriveCommissionPin, normalizeCommissionReferralCode } from "@/lib/leaders/commission-pin";
 
 export const LEADERS_COMMISSION_COOKIE_NAME = "zn_leaders_commission";
+export const LEADERS_REFERRALS_COOKIE_NAME = "zn_leaders_referrals";
 const COOKIE_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 function getSecret(): string {
@@ -102,9 +103,28 @@ export async function clearCommissionAccessCookie(): Promise<void> {
   store.set(LEADERS_COMMISSION_COOKIE_NAME, "", cookieOptions(0));
 }
 
+export async function setReferralTableAccessCookie(referralCode: string): Promise<void> {
+  const { value, expiresAt } = buildCookieValue(referralCode);
+  const maxAge = expiresAt - Math.floor(Date.now() / 1000);
+  const store = await cookies();
+
+  store.set(LEADERS_REFERRALS_COOKIE_NAME, value, cookieOptions(maxAge));
+}
+
 export async function hasCommissionAccess(referralCode: string): Promise<boolean> {
   const store = await cookies();
   const cookie = store.get(LEADERS_COMMISSION_COOKIE_NAME);
+  if (!cookie?.value) return false;
+
+  const parsed = parseCookieValue(cookie.value);
+  if (!parsed) return false;
+
+  return parsed.referralCode === normalizeCommissionReferralCode(referralCode);
+}
+
+export async function hasReferralTableAccess(referralCode: string): Promise<boolean> {
+  const store = await cookies();
+  const cookie = store.get(LEADERS_REFERRALS_COOKIE_NAME);
   if (!cookie?.value) return false;
 
   const parsed = parseCookieValue(cookie.value);

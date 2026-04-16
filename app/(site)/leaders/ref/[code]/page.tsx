@@ -20,6 +20,7 @@ import {
   getReferralDashboard,
   lockReferralCommissionMode,
   requestReferralCommissionPin,
+  unlockReferralTable,
   unlockReferralCommissionMode,
   type ReferralScope,
 } from "@/lib/leaders/leaders";
@@ -171,7 +172,7 @@ export default function ReferralDashboardPage() {
   const [prices, setPrices] = useState<PriceByBucket>(DEFAULT_PRICE_BY_BUCKET);
   const [conversions, setConversions] = useState<ConversionByBucket>(DEFAULT_CONVERSION_BY_BUCKET);
   const [accessGesture, setAccessGesture] = useState({ count: 0, lastAt: 0 });
-  const [commissionPromptOpen, setCommissionPromptOpen] = useState(false);
+  const [accessPromptMode, setAccessPromptMode] = useState<"commission" | "referrals" | null>(null);
   const [commissionPin, setCommissionPin] = useState("");
   const [commissionError, setCommissionError] = useState("");
   const [commissionSubmitting, setCommissionSubmitting] = useState(false);
@@ -197,6 +198,8 @@ export default function ReferralDashboardPage() {
   }, [referralCode, scope]);
 
   const model: ProjectionModel = data?.root?.cabal && data.commissionUnlocked ? "commission" : "fixed";
+  const referralsTableUnlocked = model === "commission" || Boolean(data?.referralsUnlocked);
+  const referralsTableLocked = model === "fixed" && !referralsTableUnlocked;
   const indirectReferrals = data
     ? Math.max(0, data.totalAttributedReferrals - data.directReferrals.length)
     : 0;
@@ -230,8 +233,8 @@ export default function ReferralDashboardPage() {
     () => (data ? ["all" as const, ...data.depthCounts.map((row) => row.depth)] : ["all" as const]),
     [data],
   );
-  const canShowMoreReferralRows = visibleReferralRows < visibleReferrals.length;
-  const canHideReferralRows = visibleReferralRows > 10;
+  const canShowMoreReferralRows = !referralsTableLocked && visibleReferralRows < visibleReferrals.length;
+  const canHideReferralRows = !referralsTableLocked && visibleReferralRows > 10;
   const activeReferralLevelIndex = Math.max(
     0,
     referralLevelOptions.findIndex((option) => option === referralLevelFilter),
@@ -247,7 +250,7 @@ export default function ReferralDashboardPage() {
 
   useEffect(() => {
     setAccessGesture({ count: 0, lastAt: 0 });
-    setCommissionPromptOpen(false);
+    setAccessPromptMode(null);
     setCommissionPin("");
     setCommissionError("");
     setCommissionPinMessage("");
@@ -263,7 +266,7 @@ export default function ReferralDashboardPage() {
         if (data.commissionUnlocked) {
           void lockCommissionMode();
         } else {
-          setCommissionPromptOpen(true);
+          setAccessPromptMode("commission");
         }
         setCommissionError("");
         setCommissionPinMessage("");
@@ -279,7 +282,7 @@ export default function ReferralDashboardPage() {
     const result = await lockReferralCommissionMode();
     if (result.ok) {
       setData((current) => (current ? { ...current, commissionUnlocked: false } : current));
-      setCommissionPromptOpen(false);
+      setAccessPromptMode(null);
       setCommissionPin("");
       setCommissionError("");
       setCommissionPinMessage("");
@@ -290,23 +293,42 @@ export default function ReferralDashboardPage() {
     setModeSwitching(false);
   };
 
-  const submitCommissionPin = async (event: FormEvent<HTMLFormElement>) => {
+  const submitAccessPin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!data || commissionSubmitting) return;
+    if (!data || !accessPromptMode || commissionSubmitting) return;
 
     setCommissionSubmitting(true);
     setCommissionError("");
 
-    const result = await unlockReferralCommissionMode(data.referralCode, commissionPin);
+    const result =
+      accessPromptMode === "referrals"
+        ? await unlockReferralTable(data.referralCode, commissionPin)
+        : await unlockReferralCommissionMode(data.referralCode, commissionPin);
+
     if (result.ok) {
-      setData((current) => (current ? { ...current, commissionUnlocked: true } : current));
-      setCommissionPromptOpen(false);
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              commissionUnlocked: accessPromptMode === "commission" ? true : current.commissionUnlocked,
+              referralsUnlocked: accessPromptMode === "referrals" ? true : current.referralsUnlocked,
+            }
+          : current,
+      );
+      setAccessPromptMode(null);
       setCommissionPin("");
     } else {
       setCommissionError(result.error);
     }
 
     setCommissionSubmitting(false);
+  };
+
+  const closeAccessPrompt = () => {
+    setAccessPromptMode(null);
+    setCommissionPin("");
+    setCommissionError("");
+    setCommissionPinMessage("");
   };
 
   const requestCommissionPin = async () => {
@@ -454,9 +476,9 @@ export default function ReferralDashboardPage() {
             </div>
           </div>
         </div>
-        {commissionPromptOpen && (
+        {accessPromptMode === "commission" && (
           <form
-            onSubmit={submitCommissionPin}
+            onSubmit={submitAccessPin}
             className="mt-5 border-t pt-3"
             style={{ borderColor: "var(--leaders-card-border)" }}
           >
@@ -491,12 +513,7 @@ export default function ReferralDashboardPage() {
               <button
                 type="button"
                 className="cursor-pointer px-2 py-2 text-sm font-semibold text-fg-muted transition-colors hover:text-fg-heading"
-                onClick={() => {
-                  setCommissionPromptOpen(false);
-                  setCommissionPin("");
-                  setCommissionError("");
-                  setCommissionPinMessage("");
-                }}
+                onClick={closeAccessPrompt}
               >
                 Cancel
               </button>
@@ -616,7 +633,13 @@ export default function ReferralDashboardPage() {
           </div>
           <div
             className="mt-4 overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
-            style={{ maxHeight: `${Math.max(150, 58 + Math.max(1, visibleReferralTableRows.length) * 42)}px` }}
+            style={{
+              maxHeight: referralsTableLocked
+                ? accessPromptMode === "referrals"
+                  ? "310px"
+                  : "150px"
+                : `${Math.max(150, 58 + Math.max(1, visibleReferralTableRows.length) * 42)}px`,
+            }}
           >
             <div className="max-w-full overflow-x-auto">
               <table className="w-full min-w-[420px] text-left text-sm">
@@ -630,7 +653,78 @@ export default function ReferralDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="transition-opacity duration-300">
-                  {visibleReferrals.length === 0 ? (
+                  {referralsTableLocked ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center">
+                        {accessPromptMode === "referrals" ? (
+                          <form
+                            onSubmit={submitAccessPin}
+                            className="mx-auto inline-block text-left"
+                          >
+                            <label className="block text-sm font-semibold text-fg-heading" htmlFor="referrals-access-code">
+                              Enter access code
+                            </label>
+                            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                              <input
+                                id="referrals-access-code"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                autoComplete="one-time-code"
+                                maxLength={6}
+                                value={commissionPin}
+                                onChange={(event) => {
+                                  setCommissionPin(event.target.value.replace(/\D/g, "").slice(0, 6));
+                                  setCommissionError("");
+                                  setCommissionPinMessage("");
+                                }}
+                                className="w-28 rounded-lg border bg-transparent px-3 py-2 text-center font-mono text-base tracking-[0.18em] text-fg-heading"
+                                style={{ borderColor: "var(--leaders-card-border)" }}
+                              />
+                              <button
+                                type="submit"
+                                disabled={commissionPin.length !== 6 || commissionSubmitting}
+                                className="cursor-pointer rounded-lg border px-3 py-2 text-sm font-semibold text-fg-heading transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                style={{ borderColor: "var(--leaders-card-border)" }}
+                              >
+                                {commissionSubmitting ? "Checking" : "Unlock"}
+                              </button>
+                              <button
+                                type="button"
+                                className="cursor-pointer px-2 py-2 text-sm font-semibold text-fg-muted transition-colors hover:text-fg-heading"
+                                onClick={closeAccessPrompt}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                className="cursor-pointer px-2 py-2 text-sm font-semibold text-fg-muted underline-offset-2 transition-colors hover:text-fg-heading hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={commissionPinRequesting}
+                                onClick={requestCommissionPin}
+                              >
+                                {commissionPinRequesting ? "Sending" : "Forgot pin?"}
+                              </button>
+                            </div>
+                            {commissionError && <p className="mt-2 text-center text-sm text-fg-muted">{commissionError}</p>}
+                            {commissionPinMessage && <p className="mt-2 text-center text-sm text-fg-muted">{commissionPinMessage}</p>}
+                          </form>
+                        ) : (
+                          <button
+                            type="button"
+                            className="cursor-pointer text-sm font-semibold text-fg-heading underline-offset-2 transition-colors hover:underline"
+                            onClick={() => {
+                              setAccessPromptMode("referrals");
+                              setCommissionPin("");
+                              setCommissionError("");
+                              setCommissionPinMessage("");
+                            }}
+                          >
+                            View your referrals
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ) : visibleReferrals.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-fg-muted">No referrals at this level.</td>
                     </tr>
@@ -655,7 +749,7 @@ export default function ReferralDashboardPage() {
               </table>
             </div>
           </div>
-          {visibleReferrals.length > 10 && (
+          {!referralsTableLocked && visibleReferrals.length > 10 && (
             <div
               className="mt-3 flex items-center justify-between gap-3 border-t pt-3"
               style={{ borderColor: "var(--leaders-card-border)" }}
