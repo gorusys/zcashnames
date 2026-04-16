@@ -178,6 +178,8 @@ export default function ReferralDashboardPage() {
   const [commissionSubmitting, setCommissionSubmitting] = useState(false);
   const [commissionPinRequesting, setCommissionPinRequesting] = useState(false);
   const [commissionPinMessage, setCommissionPinMessage] = useState("");
+  const [commissionPinEmail, setCommissionPinEmail] = useState("");
+  const [commissionPinRecoveryOpen, setCommissionPinRecoveryOpen] = useState(false);
   const [modeSwitching, setModeSwitching] = useState(false);
 
   useEffect(() => {
@@ -261,6 +263,8 @@ export default function ReferralDashboardPage() {
     setAccessGesture({ count: 0, lastAt: 0 });
     setAccessPromptMode(null);
     setCommissionPin("");
+    setCommissionPinEmail("");
+    setCommissionPinRecoveryOpen(false);
     setCommissionError("");
     setCommissionPinMessage("");
   }, [referralCode]);
@@ -279,6 +283,8 @@ export default function ReferralDashboardPage() {
         }
         setCommissionError("");
         setCommissionPinMessage("");
+        setCommissionPinEmail("");
+        setCommissionPinRecoveryOpen(false);
         return { count: 0, lastAt: 0 };
       }
 
@@ -293,6 +299,8 @@ export default function ReferralDashboardPage() {
       setData((current) => (current ? { ...current, commissionUnlocked: false } : current));
       setAccessPromptMode(null);
       setCommissionPin("");
+      setCommissionPinEmail("");
+      setCommissionPinRecoveryOpen(false);
       setCommissionError("");
       setCommissionPinMessage("");
       setProjectionOpen(false);
@@ -326,6 +334,8 @@ export default function ReferralDashboardPage() {
       );
       setAccessPromptMode(null);
       setCommissionPin("");
+      setCommissionPinEmail("");
+      setCommissionPinRecoveryOpen(false);
     } else {
       setCommissionError(result.error);
     }
@@ -336,18 +346,26 @@ export default function ReferralDashboardPage() {
   const closeAccessPrompt = () => {
     setAccessPromptMode(null);
     setCommissionPin("");
+    setCommissionPinEmail("");
+    setCommissionPinRecoveryOpen(false);
     setCommissionError("");
     setCommissionPinMessage("");
   };
 
   const requestCommissionPin = async () => {
     if (!data || commissionPinRequesting) return;
+    const email = commissionPinEmail.trim();
+    if (!email) {
+      setCommissionError("Enter the email address you used for early access.");
+      setCommissionPinMessage("");
+      return;
+    }
 
     setCommissionPinRequesting(true);
     setCommissionError("");
     setCommissionPinMessage("");
 
-    const result = await requestReferralCommissionPin(data.referralCode);
+    const result = await requestReferralCommissionPin(data.referralCode, email);
     if (result.ok) {
       setCommissionPinMessage(result.message);
     } else {
@@ -529,12 +547,46 @@ export default function ReferralDashboardPage() {
               <button
                 type="button"
                 className="cursor-pointer px-2 py-2 text-sm font-semibold text-fg-muted underline-offset-2 transition-colors hover:text-fg-heading hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={commissionPinRequesting}
-                onClick={requestCommissionPin}
+                onClick={() => {
+                  setCommissionPinRecoveryOpen(true);
+                  setCommissionError("");
+                  setCommissionPinMessage("");
+                }}
               >
-                {commissionPinRequesting ? "Sending" : "Forgot pin?"}
+                Forgot pin?
               </button>
             </div>
+            {commissionPinRecoveryOpen && (
+              <div className="mt-3 max-w-sm">
+                <label className="block text-sm font-semibold text-fg-heading" htmlFor="commission-pin-email">
+                  Email address
+                </label>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <input
+                    id="commission-pin-email"
+                    type="email"
+                    autoComplete="email"
+                    value={commissionPinEmail}
+                    onChange={(event) => {
+                      setCommissionPinEmail(event.target.value);
+                      setCommissionError("");
+                      setCommissionPinMessage("");
+                    }}
+                    className="min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm text-fg-heading"
+                    style={{ borderColor: "var(--leaders-card-border)" }}
+                  />
+                  <button
+                    type="button"
+                    disabled={!commissionPinEmail.trim() || commissionPinRequesting}
+                    className="cursor-pointer rounded-lg border px-3 py-2 text-sm font-semibold text-fg-heading transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ borderColor: "var(--leaders-card-border)" }}
+                    onClick={requestCommissionPin}
+                  >
+                    {commissionPinRequesting ? "Sending" : "Send pin"}
+                  </button>
+                </div>
+              </div>
+            )}
             {commissionError && <p className="mt-2 text-sm text-fg-muted">{commissionError}</p>}
             {commissionPinMessage && <p className="mt-2 text-sm text-fg-muted">{commissionPinMessage}</p>}
           </form>
@@ -645,7 +697,7 @@ export default function ReferralDashboardPage() {
             style={{
               maxHeight: referralsTableLocked
                 ? accessPromptMode === "referrals"
-                  ? "310px"
+                  ? "410px"
                   : "150px"
                 : `${Math.max(150, 58 + Math.max(1, visibleReferralTableRows.length) * 42)}px`,
             }}
@@ -709,11 +761,43 @@ export default function ReferralDashboardPage() {
                             <button
                               type="button"
                               className="mt-2 cursor-pointer px-2 py-1 text-sm font-semibold text-fg-muted underline-offset-2 transition-colors hover:text-fg-heading hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                              disabled={commissionPinRequesting}
-                              onClick={requestCommissionPin}
+                              onClick={() => {
+                                setCommissionPinRecoveryOpen(true);
+                                setCommissionError("");
+                                setCommissionPinMessage("");
+                              }}
                             >
-                              {commissionPinRequesting ? "Sending" : "Forgot pin?"}
+                              Forgot pin?
                             </button>
+                            {commissionPinRecoveryOpen && (
+                              <div className="mt-3 w-full">
+                                <label className="block text-sm font-semibold text-fg-heading" htmlFor="referrals-pin-email">
+                                  Email address
+                                </label>
+                                <input
+                                  id="referrals-pin-email"
+                                  type="email"
+                                  autoComplete="email"
+                                  value={commissionPinEmail}
+                                  onChange={(event) => {
+                                    setCommissionPinEmail(event.target.value);
+                                    setCommissionError("");
+                                    setCommissionPinMessage("");
+                                  }}
+                                  className="mt-2 w-full rounded-lg border bg-transparent px-3 py-2 text-sm text-fg-heading"
+                                  style={{ borderColor: "var(--leaders-card-border)" }}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={!commissionPinEmail.trim() || commissionPinRequesting}
+                                  className="mt-2 cursor-pointer rounded-lg border px-3 py-2 text-sm font-semibold text-fg-heading transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                  style={{ borderColor: "var(--leaders-card-border)" }}
+                                  onClick={requestCommissionPin}
+                                >
+                                  {commissionPinRequesting ? "Sending" : "Send pin"}
+                                </button>
+                              </div>
+                            )}
                             {commissionError && <p className="mt-2 text-center text-sm text-fg-muted">{commissionError}</p>}
                             {commissionPinMessage && <p className="mt-2 text-center text-sm text-fg-muted">{commissionPinMessage}</p>}
                           </form>
@@ -724,6 +808,8 @@ export default function ReferralDashboardPage() {
                             onClick={() => {
                               setAccessPromptMode("referrals");
                               setCommissionPin("");
+                              setCommissionPinEmail("");
+                              setCommissionPinRecoveryOpen(false);
                               setCommissionError("");
                               setCommissionPinMessage("");
                             }}

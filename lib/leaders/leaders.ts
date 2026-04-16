@@ -92,7 +92,7 @@ export type ReferralCommissionPinRequestResult =
   | { ok: true; message: string }
   | { ok: false; error: string };
 
-const COMMISSION_PIN_SENT_MESSAGE = "We will send the code to your email address.";
+const COMMISSION_PIN_SENT_MESSAGE = "If the email matches, we will send the code there.";
 const COMMISSION_PIN_RATE_LIMIT_MESSAGE = "We already sent you a code today";
 const COMMISSION_PIN_RATE_LIMIT_MS = 24 * 60 * 60 * 1000;
 
@@ -617,10 +617,13 @@ export async function unlockReferralTable(
 
 export async function requestReferralCommissionPin(
   referralCode: string,
+  email: string,
 ): Promise<ReferralCommissionPinRequestResult> {
   try {
     const normalizedCode = referralCode.trim();
+    const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedCode) return { ok: true, message: COMMISSION_PIN_SENT_MESSAGE };
+    if (!normalizedEmail) return { ok: false, error: "Enter the email address you used for early access." };
 
     const { data, error } = await db
       .from("zn_waitlist")
@@ -637,13 +640,18 @@ export async function requestReferralCommissionPin(
       return { ok: true, message: COMMISSION_PIN_SENT_MESSAGE };
     }
 
+    const storedEmail = String(data.email).trim().toLowerCase();
+    if (storedEmail !== normalizedEmail) {
+      return { ok: true, message: COMMISSION_PIN_SENT_MESSAGE };
+    }
+
     if (wasCommissionPinSentToday(data.access_pin_email_sent_at)) {
       return { ok: true, message: COMMISSION_PIN_RATE_LIMIT_MESSAGE };
     }
 
     const headerStore = await headers();
     await sendCommissionPinEmail({
-      email: String(data.email),
+      email: normalizedEmail,
       name: String(data.name || "there"),
       pin: getCommissionPin(String(data.referral_code)),
       referralCode: String(data.referral_code),
