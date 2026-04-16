@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   Area,
   AreaChart,
@@ -16,7 +16,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getReferralDashboard, type ReferralScope } from "@/lib/leaders/leaders";
+import {
+  getReferralDashboard,
+  lockReferralCommissionMode,
+  unlockReferralCommissionMode,
+  type ReferralScope,
+} from "@/lib/leaders/leaders";
 import {
   calculateReferralProjection,
   DEFAULT_CONVERSION_BY_BUCKET,
@@ -164,6 +169,12 @@ export default function ReferralDashboardPage() {
   const [directMetricFace, setDirectMetricFace] = useState<"direct" | "indirect">("direct");
   const [prices, setPrices] = useState<PriceByBucket>(DEFAULT_PRICE_BY_BUCKET);
   const [conversions, setConversions] = useState<ConversionByBucket>(DEFAULT_CONVERSION_BY_BUCKET);
+  const [accessGesture, setAccessGesture] = useState({ count: 0, lastAt: 0 });
+  const [commissionPromptOpen, setCommissionPromptOpen] = useState(false);
+  const [commissionPin, setCommissionPin] = useState("");
+  const [commissionError, setCommissionError] = useState("");
+  const [commissionSubmitting, setCommissionSubmitting] = useState(false);
+  const [modeSwitching, setModeSwitching] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,7 +193,7 @@ export default function ReferralDashboardPage() {
     };
   }, [referralCode, scope]);
 
-  const model: ProjectionModel = data?.root?.cabal ? "commission" : "fixed";
+  const model: ProjectionModel = data?.root?.cabal && data.commissionUnlocked ? "commission" : "fixed";
   const indirectReferrals = data
     ? Math.max(0, data.totalAttributedReferrals - data.directReferrals.length)
     : 0;
@@ -230,6 +241,67 @@ export default function ReferralDashboardPage() {
   useEffect(() => {
     setDirectMetricFace("direct");
   }, [referralCode, scope]);
+
+  useEffect(() => {
+    setAccessGesture({ count: 0, lastAt: 0 });
+    setCommissionPromptOpen(false);
+    setCommissionPin("");
+    setCommissionError("");
+  }, [referralCode]);
+
+  const handleCommissionAccessGesture = () => {
+    if (!data?.root?.cabal || modeSwitching) return;
+
+    const now = Date.now();
+    setAccessGesture((current) => {
+      const nextCount = now - current.lastAt > 3000 ? 1 : current.count + 1;
+      if (nextCount >= 6) {
+        if (data.commissionUnlocked) {
+          void lockCommissionMode();
+        } else {
+          setCommissionPromptOpen(true);
+        }
+        setCommissionError("");
+        return { count: 0, lastAt: 0 };
+      }
+
+      return { count: nextCount, lastAt: now };
+    });
+  };
+
+  const lockCommissionMode = async () => {
+    setModeSwitching(true);
+    const result = await lockReferralCommissionMode();
+    if (result.ok) {
+      setData((current) => (current ? { ...current, commissionUnlocked: false } : current));
+      setCommissionPromptOpen(false);
+      setCommissionPin("");
+      setCommissionError("");
+      setProjectionOpen(false);
+    } else {
+      setCommissionError(result.error);
+    }
+    setModeSwitching(false);
+  };
+
+  const submitCommissionPin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!data || commissionSubmitting) return;
+
+    setCommissionSubmitting(true);
+    setCommissionError("");
+
+    const result = await unlockReferralCommissionMode(data.referralCode, commissionPin);
+    if (result.ok) {
+      setData((current) => (current ? { ...current, commissionUnlocked: true } : current));
+      setCommissionPromptOpen(false);
+      setCommissionPin("");
+    } else {
+      setCommissionError(result.error);
+    }
+
+    setCommissionSubmitting(false);
+  };
 
   const projectedReferralPayout = (name: string, depth: number): number => {
     const bucket = getNameLengthBucket(name);
@@ -333,9 +405,21 @@ export default function ReferralDashboardPage() {
             </div>
           </div>
           <div className="text-right">
-            <p className="inline-block rounded-full border px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
-              {data.waitlistPosition ? `#${data.waitlistPosition.toLocaleString()}` : "-"}
-            </p>
+            {data.root?.cabal ? (
+              <button
+                type="button"
+                aria-label="Dashboard options"
+                className="inline-block cursor-default rounded-full border px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted"
+                style={{ borderColor: "var(--leaders-card-border)" }}
+                onClick={handleCommissionAccessGesture}
+              >
+                {data.waitlistPosition ? `#${data.waitlistPosition.toLocaleString()}` : "-"}
+              </button>
+            ) : (
+              <p className="inline-block rounded-full border px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
+                {data.waitlistPosition ? `#${data.waitlistPosition.toLocaleString()}` : "-"}
+              </p>
+            )}
             <div className="mt-2 text-sm text-fg-muted">
               {data.root ? (
                 <>
@@ -347,6 +431,54 @@ export default function ReferralDashboardPage() {
             </div>
           </div>
         </div>
+        {commissionPromptOpen && (
+          <form
+            onSubmit={submitCommissionPin}
+            className="mt-5 border-t pt-3"
+            style={{ borderColor: "var(--leaders-card-border)" }}
+          >
+            <label className="block text-sm font-semibold text-fg-heading" htmlFor="commission-access-code">
+              Enter access code
+            </label>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input
+                id="commission-access-code"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={commissionPin}
+                onChange={(event) => {
+                  setCommissionPin(event.target.value.replace(/\D/g, "").slice(0, 6));
+                  setCommissionError("");
+                }}
+                className="w-28 rounded-lg border bg-transparent px-3 py-2 text-center font-mono text-base tracking-[0.18em] text-fg-heading"
+                style={{ borderColor: "var(--leaders-card-border)" }}
+              />
+              <button
+                type="submit"
+                disabled={commissionPin.length !== 6 || commissionSubmitting}
+                className="cursor-pointer rounded-lg border px-3 py-2 text-sm font-semibold text-fg-heading transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ borderColor: "var(--leaders-card-border)" }}
+              >
+                {commissionSubmitting ? "Checking" : "Unlock"}
+              </button>
+              <button
+                type="button"
+                className="cursor-pointer px-2 py-2 text-sm font-semibold text-fg-muted transition-colors hover:text-fg-heading"
+                onClick={() => {
+                  setCommissionPromptOpen(false);
+                  setCommissionPin("");
+                  setCommissionError("");
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+            {commissionError && <p className="mt-2 text-sm text-fg-muted">{commissionError}</p>}
+          </form>
+        )}
         <ReferralGrowthChart data={referralChartSeries} />
       </section>
 
@@ -400,7 +532,7 @@ export default function ReferralDashboardPage() {
               : "Indirect referrals signed up through this code's referral tree.")}
           {activeMetricKey === "payout" &&
             (model === "commission"
-              ? "Project rewards if all referrals purchase names during early access."
+              ? "Projected rewards if all referrals purchase names during early access."
               : "Calculate rewards when referrals complete purchases based on assumptions.")}
         </p>
       </div>
@@ -554,22 +686,22 @@ export default function ReferralDashboardPage() {
                     <ProjectionStat label="Rate" value={`${Math.round(projection.commissionRate * 100)}%`} />
                   </div>
                   <div className="mt-5 max-w-full overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-left text-sm">
+                    <table className="w-full min-w-[520px] text-left text-sm sm:min-w-[640px]">
                       <thead>
                         <tr className="border-b text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-fg-muted" style={{ borderColor: "var(--leaders-card-border)" }}>
-                          <th className="py-2 pr-3">Length</th>
-                          <th className="px-3 py-2 text-right">Refs</th>
-                          <th className="px-3 py-2 text-right">Price</th>
-                          <th className="px-3 py-2 text-right">Convert</th>
-                          <th className="py-2 pl-3 text-right">Revenue</th>
+                          <th className="py-2 pr-2 sm:pr-3">Length</th>
+                          <th className="px-1.5 py-2 text-right sm:px-3">Refs</th>
+                          <th className="px-1.5 py-2 text-right sm:px-3">Price</th>
+                          <th className="px-1.5 py-2 text-right sm:px-3">Convert</th>
+                          <th className="py-2 pl-2 text-right sm:pl-3">Revenue</th>
                         </tr>
                       </thead>
                       <tbody>
                         {projection.rows.map((row) => (
                           <tr key={row.bucket} className="border-b last:border-b-0" style={{ borderColor: "var(--leaders-card-border)" }}>
-                            <td className="py-2 pr-3 font-medium text-fg-heading">{bucketLabel(row.bucket)}</td>
-                            <td className="px-3 py-2 text-right tabular-nums text-fg-body">{row.count}</td>
-                            <td className="px-3 py-2">
+                            <td className="py-2 pr-2 font-medium text-fg-heading sm:pr-3">{bucketLabel(row.bucket)}</td>
+                            <td className="px-1.5 py-2 text-right tabular-nums text-fg-body sm:px-3">{row.count}</td>
+                            <td className="px-1.5 py-2 sm:px-3">
                               <NumberInput
                                 label={`${bucketLabel(row.bucket)} price`}
                                 min={0}
@@ -578,7 +710,7 @@ export default function ReferralDashboardPage() {
                                 onChange={(value) => setPrices((current) => ({ ...current, [row.bucket]: value }))}
                               />
                             </td>
-                            <td className="px-3 py-2">
+                            <td className="px-1.5 py-2 sm:px-3">
                               <NumberInput
                                 label={`${bucketLabel(row.bucket)} conversion percent`}
                                 min={0}
@@ -589,7 +721,7 @@ export default function ReferralDashboardPage() {
                                 suffix="%"
                               />
                             </td>
-                            <td className="py-2 pl-3 text-right tabular-nums text-fg-body">{formatZec(row.projectedRevenue)}</td>
+                            <td className="py-2 pl-2 text-right tabular-nums text-fg-body sm:pl-3">{formatZec(row.projectedRevenue)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -914,7 +1046,7 @@ function RewardSchedule({
                     ? `Get ${referralsToNextTier.toLocaleString()} more ${pluralize(
                         referralsToNextTier,
                         "referral",
-                      )} to earn ${formatPercent(nextCommissionTier.rate)}.`
+                      )} to claim their name and earn ${formatPercent(nextCommissionTier.rate)}.`
                     : "You are at the top commission tier."
                 }`}
           </p>
@@ -936,8 +1068,8 @@ function RewardSchedule({
       </div>
 
       <div className="mt-5 max-w-full overflow-x-auto">
-        <div className="grid min-w-[460px] gap-3">
-          <div className="grid grid-cols-[3rem_1fr_1fr_1fr_1fr_1fr] gap-3 px-3 text-center text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted">
+        <div className="grid min-w-[420px] gap-3">
+          <div className="grid grid-cols-[2.75rem_minmax(2.35rem,0.8fr)_minmax(2.5rem,0.8fr)_minmax(2.5rem,0.8fr)_minmax(2.5rem,0.8fr)_minmax(6rem,1.6fr)] gap-2 px-2 text-center text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-fg-muted sm:grid-cols-[3rem_1fr_1fr_1fr_1fr_1fr] sm:gap-3 sm:px-3">
             <span className="text-left">Level</span>
             <span>Refs</span>
             <span>24h</span>
@@ -977,7 +1109,7 @@ function ScheduleRow({
 }) {
   return (
     <div
-      className="grid grid-cols-[3rem_1fr_1fr_1fr_1fr_1fr] items-center gap-3 rounded-lg border px-3 py-2"
+      className="grid grid-cols-[2.75rem_minmax(2.35rem,0.8fr)_minmax(2.5rem,0.8fr)_minmax(2.5rem,0.8fr)_minmax(2.5rem,0.8fr)_minmax(6rem,1.6fr)] items-center gap-2 rounded-lg border px-2 py-2 sm:grid-cols-[3rem_1fr_1fr_1fr_1fr_1fr] sm:gap-3 sm:px-3"
       style={{ borderColor: "var(--leaders-card-border)" }}
     >
       <p className="text-left text-sm font-bold text-fg-heading">{toRoman(level)}</p>
@@ -1238,7 +1370,7 @@ function NumberInput({
         step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="w-20 rounded-lg border bg-transparent px-2 py-1.5 text-right text-sm font-medium tabular-nums text-fg-body"
+        className="w-16 rounded-lg border bg-transparent px-2 py-1.5 text-right text-sm font-medium tabular-nums text-fg-body sm:w-20"
         style={{ borderColor: "var(--leaders-card-border)" }}
       />
       {suffix && <span className="w-4 text-fg-muted">{suffix}</span>}

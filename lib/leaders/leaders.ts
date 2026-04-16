@@ -2,6 +2,12 @@
 
 import { db } from "@/lib/db";
 import {
+  clearCommissionAccessCookie,
+  hasCommissionAccess,
+  setCommissionAccessCookie,
+  verifyCommissionPin,
+} from "@/lib/leaders/commission-access";
+import {
   buildFixedDepthReferralSummaries,
   buildReferralDashboard,
   type ReferralDashboardData,
@@ -64,6 +70,14 @@ export interface DailyNewNameEntry {
 }
 
 export type ReferralScope = "all" | "confirmed";
+
+export type ReferralCommissionUnlockResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export type ReferralCommissionModeResult =
+  | { ok: true }
+  | { ok: false; error: string };
 
 function toWaitlistReferralRows(data: Record<string, unknown>[]): WaitlistReferralRow[] {
   return data
@@ -486,8 +500,51 @@ export async function getReferralDashboard(
 
     const rows = toWaitlistReferralRows(data);
 
-    return buildReferralDashboard(normalizedCode, rows, scope);
+    const dashboard = buildReferralDashboard(normalizedCode, rows, scope);
+    const commissionUnlocked = dashboard.root?.cabal
+      ? await hasCommissionAccess(dashboard.referralCode).catch(() => false)
+      : false;
+
+    return { ...dashboard, commissionUnlocked };
   } catch {
     return null;
+  }
+}
+
+export async function unlockReferralCommissionMode(
+  referralCode: string,
+  pin: string,
+): Promise<ReferralCommissionUnlockResult> {
+  try {
+    const normalizedCode = referralCode.trim();
+    if (!normalizedCode) return { ok: false, error: "Code not recognized." };
+
+    const { data, error } = await db
+      .from("zn_waitlist")
+      .select("referral_code, cabal")
+      .eq("referral_code", normalizedCode)
+      .maybeSingle();
+
+    if (error || !data || !data.cabal) {
+      return { ok: false, error: "Code not recognized." };
+    }
+
+    if (!verifyCommissionPin(normalizedCode, pin)) {
+      return { ok: false, error: "Code not recognized." };
+    }
+
+    await setCommissionAccessCookie(normalizedCode);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Code not recognized." };
+  }
+}
+
+export async function lockReferralCommissionMode(): Promise<ReferralCommissionModeResult> {
+  try {
+    await clearCommissionAccessCookie();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not switch modes." };
   }
 }

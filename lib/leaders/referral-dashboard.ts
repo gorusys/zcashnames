@@ -27,6 +27,7 @@ export interface ReferralDashboardData {
   referralCode: string;
   waitlistPosition: number | null;
   rootBadge: "red" | "blue" | null;
+  commissionUnlocked: boolean;
   directReferrals: DirectReferralEntry[];
   descendants: ReferralTreeEntry[];
   depthCounts: Array<{ depth: number; count: number }>;
@@ -241,6 +242,7 @@ export function buildReferralDashboard(
     referralCode: normalizedCode,
     waitlistPosition: waitlistPosition && waitlistPosition > 0 ? waitlistPosition : null,
     rootBadge: resolveReferralBadge(normalizedCode, eligibleRows),
+    commissionUnlocked: false,
     directReferrals: descendants.filter((entry): entry is DirectReferralEntry => entry.depth === 1),
     descendants,
     depthCounts,

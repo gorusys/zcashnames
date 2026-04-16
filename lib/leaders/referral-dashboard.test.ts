@@ -11,6 +11,7 @@ import {
   getNameLengthBucket,
   type WaitlistReferralRow,
 } from "./referral-dashboard.ts";
+import { deriveCommissionPin, normalizeCommissionReferralCode } from "./commission-pin.ts";
 
 let rowIndex = 0;
 
@@ -132,6 +133,14 @@ test("projection helpers calculate depth rewards, commission thresholds, and len
   assert.equal(Number(fixed.projectedPayout.toFixed(5)), 0.1375);
   assert.equal(commission.commissionRate, 0.15);
   assert.ok(commission.projectedPayout > fixed.projectedPayout);
+});
+
+test("commission pin helper deterministically derives a normalized 6 digit code", () => {
+  assert.equal(normalizeCommissionReferralCode("  RoOt  "), "root");
+  assert.equal(deriveCommissionPin("root", "test-secret"), "924731");
+  assert.equal(deriveCommissionPin("  ROOT  ", "test-secret"), "924731");
+  assert.match(deriveCommissionPin("root", "different-secret"), /^\d{6}$/);
+  assert.notEqual(deriveCommissionPin("root", "different-secret"), "924731");
 });
 
 function row(
