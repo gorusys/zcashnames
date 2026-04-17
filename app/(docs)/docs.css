@@ -8,8 +8,7 @@
  * was compiled against its own source set, not ours.
  *
  * This pulls in Tailwind utilities scoped to the components and MDX files we
- * actually use in the docs route. Imported BEFORE Nextra's stylesheet in
- * app/(docs)/docs/layout.tsx so Nextra wins on any class collisions.
+ * actually use in the docs route.
  */
 
 @import "tailwindcss";
@@ -17,19 +16,128 @@
 @source "../../components/docs/**/*.{ts,tsx}";
 @source "../../content/**/*.{md,mdx}";
 
+:root {
+  --mono-0: #0f380f;
+  --mono-1: #306230;
+  --mono-2: #8bac0f;
+  --mono-3: #9bbc0f;
+  --color-background: #0a0a0a;
+  --color-raised: #1e1e1e;
+  --fg-heading: #f0f0f0;
+  --fg-muted: #8b8b8b;
+  --logo-filter: invert(1);
+  --type-section-subtitle: clamp(1.04rem, 1.2vw, 1.2rem);
+}
+
+:is(html.light, [data-theme="light"]) {
+  --color-background: #fefcf7;
+  --color-raised: #f1f3f2;
+  --fg-heading: #111318;
+  --fg-muted: #5a6378;
+  --logo-filter: none;
+}
+
+:is(html.dark, [data-theme="dark"]) {
+  --color-background: #0a0a0a;
+  --color-raised: #1e1e1e;
+  --fg-heading: #f0f0f0;
+  --fg-muted: #8b8b8b;
+  --logo-filter: invert(1);
+}
+
+:is(html.monochrome, [data-theme="monochrome"]) {
+  --color-background: var(--mono-0);
+  --color-raised: var(--mono-1);
+  --fg-heading: var(--mono-3);
+  --fg-muted: var(--mono-2);
+  --logo-filter: brightness(0) invert(1) sepia(1) hue-rotate(30deg) saturate(8) brightness(0.9);
+}
+
 .docs-navbar-logo {
   display: inline-flex;
   align-items: center;
-  gap: 0.625rem;
+  gap: 1rem;
+  color: var(--fg-heading) !important;
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.docs-navbar-logo-mark-wrap {
+  position: relative;
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  transform: rotate(90deg);
+  transition: transform 300ms ease;
+}
+
+.docs-navbar-logo:hover .docs-navbar-logo-mark-wrap {
+  transform: rotate(0deg);
 }
 
 .docs-navbar-logo-mark {
   display: block;
-  width: 1.75rem;
-  height: 1.875rem;
+  width: 2.5rem;
+  height: 2.5rem;
   object-fit: contain;
 }
 
-:is(html.dark, [data-theme="dark"]) .docs-navbar-logo-mark {
-  filter: invert(1);
+.docs-navbar-logo-mark-image {
+  filter: var(--logo-filter);
+}
+
+.docs-navbar-logo-mark-mono {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: var(--fg-heading);
+  pointer-events: none;
+  -webkit-mask-image: url("/landing/z4.png");
+  mask-image: url("/landing/z4.png");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+:is(html.monochrome, [data-theme="monochrome"]) .docs-navbar-logo-mark-image {
+  display: none;
+}
+
+:is(html.monochrome, [data-theme="monochrome"]) .docs-navbar-logo-mark-mono {
+  display: block;
+}
+
+.docs-navbar-logo-text {
+  color: inherit !important;
+  font-family: inherit;
+  font-size: var(--type-section-subtitle);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  text-decoration: none;
+}
+
+.nextra-navbar a[href="https://github.com/zcashme/zcashnames"],
+.nextra-navbar a[href="https://github.com/zcashme/zcashnames"] svg,
+.nextra-navbar .nextra-hamburger,
+.nextra-navbar .nextra-hamburger svg {
+  color: var(--fg-heading) !important;
+  opacity: 1 !important;
+}
+
+:is(html.light, [data-theme="light"]) .docs-navbar-logo,
+:is(html.light, [data-theme="light"]) .docs-navbar-logo-text,
+:is(html.light, [data-theme="light"]) .nextra-navbar a[href="https://github.com/zcashme/zcashnames"],
+:is(html.light, [data-theme="light"]) .nextra-navbar a[href="https://github.com/zcashme/zcashnames"] svg,
+:is(html.light, [data-theme="light"]) .nextra-navbar .nextra-hamburger,
+:is(html.light, [data-theme="light"]) .nextra-navbar .nextra-hamburger svg {
+  color: #111318 !important;
+}
+
+:is(html.light, [data-theme="light"]) .docs-navbar-logo-mark-image {
+  filter: none !important;
 }

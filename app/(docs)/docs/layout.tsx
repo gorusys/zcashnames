@@ -1,5 +1,6 @@
 import { Footer, Layout, Navbar } from "nextra-theme-docs";
 import { getPageMap } from "nextra/page-map";
+import Link from "next/link";
 import "../docs.css";
 import "nextra-theme-docs/style.css";
 
@@ -12,17 +13,27 @@ export const metadata = {
 const navbar = (
   <Navbar
     logo={
-      <span className="docs-navbar-logo" aria-label="ZcashNames Docs">
-        <img
-          src="/landing/zcashnames-primary-logo-black-transparent.png"
-          alt=""
-          width={28}
-          height={30}
-          className="docs-navbar-logo-mark"
-        />
-        <b>ZcashNames Docs</b>
+      <span className="docs-navbar-logo" aria-label="Docs">
+        <Link
+          href="/"
+          className="docs-navbar-logo-mark-wrap"
+          aria-label="ZcashNames home"
+        >
+          <img
+            src="/landing/z4.png"
+            alt=""
+            width={56}
+            height={56}
+            className="docs-navbar-logo-mark docs-navbar-logo-mark-image"
+          />
+          <span className="docs-navbar-logo-mark-mono" aria-hidden="true" />
+        </Link>
+        <Link href="/docs" className="docs-navbar-logo-text">
+          Docs
+        </Link>
       </span>
     }
+    logoLink={false}
     projectLink="https://github.com/zcashme/zcashnames"
   />
 );
@@ -42,6 +53,10 @@ export default async function DocsLayout({
       pageMap={await getPageMap("/docs")}
       docsRepositoryBase="https://github.com/zcashme/zcashnames/tree/main/content/docs"
       footer={footer}
+      nextThemes={{
+        attribute: "class",
+        defaultTheme: "dark",
+      }}
     >
       {children}
     </Layout>
