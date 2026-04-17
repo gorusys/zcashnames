@@ -2,35 +2,54 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { COMMUNITIES } from "@/lib/zns/brand";
+import {
+  COMMUNITY_SECTIONS,
+  communitySectionHref,
+  getCommunitySection,
+  isExternalHref,
+  type CommunityCard,
+} from "@/lib/community/sections";
 
 type MenuLink = {
   label: string;
   href: string;
   displayPath?: string;
   external?: boolean;
+  disabled?: boolean;
+  comingSoon?: boolean;
   children?: MenuLink[];
 };
 
-const communityLinks: MenuLink[] = [
-  ...COMMUNITIES.map(({ label, href }) => ({
-    label,
-    href,
-    displayPath: communityPath(href),
-    external: true,
-  })),
-  {
-    label: "GitHub",
-    href: "https://github.com/zcashme/zcashnames",
-    displayPath: "zcashme/zcashnames",
-    external: true,
-  },
-];
+const communitySectionLinks: MenuLink[] = COMMUNITY_SECTIONS
+  .filter((section) => ["get-involved", "partners", "features", "events"].includes(section.slug))
+  .map((section) => ({
+    label: section.title,
+    href: communitySectionHref(section.slug),
+    displayPath: `?section=${section.slug}`,
+  }));
+
+const socialLinks = sectionCardMenuLinks("social");
+const blogLinks = sectionCardMenuLinks("blogs").map((item) => ({
+  ...item,
+  displayPath: "Coming soon",
+  disabled: true,
+}));
 
 const menuLinks: MenuLink[] = [
   { label: "Home", href: "/" },
   { label: "Explorer", href: "/explorer" },
-  { label: "Brand Kit", href: "/brandkit" },
+  {
+    label: "Learn",
+    href: "/docs",
+    displayPath: "/docs/learn",
+    children: [
+      { label: "What is ZcashNames?", href: "/docs/learn/what-is-zns", displayPath: ".../what-is-zns" },
+      { label: "How it works", href: "/docs/learn/how-it-works", displayPath: ".../how-it-works" },
+      { label: "Pricing", href: "/docs/learn/pricing", displayPath: ".../pricing" },
+      { label: "Privacy", href: "/docs/learn/privacy", displayPath: ".../privacy" },
+      { label: "FAQ", href: "/docs/faq" },
+    ],
+  },
   {
     label: "Developers",
     href: "/docs",
@@ -44,21 +63,23 @@ const menuLinks: MenuLink[] = [
     ],
   },
   {
-    label: "Learn",
-    href: "/docs",
-    displayPath: "/docs/learn",
-    children: [
-      { label: "What is ZcashNames?", href: "/docs/learn/what-is-zns", displayPath: ".../what-is-zns" },
-      { label: "How it works", href: "/docs/learn/how-it-works", displayPath: ".../how-it-works" },
-      { label: "Privacy", href: "/docs/learn/privacy", displayPath: ".../privacy" },
-      { label: "FAQ", href: "/docs/faq" },
-    ],
-  },
-  {
     label: "Community",
     href: "/community",
     displayPath: "/community",
-    children: communityLinks,
+    children: communitySectionLinks,
+  },
+  {
+    label: "Social",
+    href: "/community?section=social",
+    displayPath: "/social",
+    children: socialLinks,
+  },
+  {
+    label: "Blogs",
+    href: "/community?section=blogs",
+    displayPath: "/blogs",
+    comingSoon: true,
+    children: blogLinks,
   },
   {
     label: "Leaderboard",
@@ -66,11 +87,28 @@ const menuLinks: MenuLink[] = [
     displayPath: "/leaders",
     children: [{ label: "Dashboard", href: "/leaders/ref", displayPath: ".../ref" }],
   },
+  { label: "Brand Kit", href: "/brandkit" },
 ];
+
+function sectionCardMenuLinks(sectionSlug: string): MenuLink[] {
+  return (
+    getCommunitySection(sectionSlug)?.cards.map((card) => ({
+      label: card.name,
+      href: card.href,
+      displayPath: cardMenuDisplayPath(card),
+      external: isExternalHref(card.href),
+    })) ?? []
+  );
+}
+
+function cardMenuDisplayPath(card: CommunityCard): string {
+  if (isExternalHref(card.href)) return communityPath(card.href);
+  return card.href;
+}
 
 export default function HeaderMenu() {
   const [open, setOpen] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -80,14 +118,14 @@ export default function HeaderMenu() {
     function onPointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
-        setExpandedSections({});
+        setExpandedSection(null);
       }
     }
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setOpen(false);
-        setExpandedSections({});
+        setExpandedSection(null);
         buttonRef.current?.focus();
       }
     }
@@ -110,7 +148,7 @@ export default function HeaderMenu() {
         aria-controls="site-header-menu"
         onClick={() => {
           setOpen((value) => !value);
-          if (!open) setExpandedSections({});
+          if (!open) setExpandedSection(null);
         }}
         className="relative flex h-8 w-8 items-center justify-center text-fg-heading transition-opacity hover:opacity-75"
       >
@@ -137,16 +175,11 @@ export default function HeaderMenu() {
               <MenuItem
                 key={item.label}
                 item={item}
-                expanded={!!expandedSections[item.label]}
-                onToggle={() =>
-                  setExpandedSections((sections) => ({
-                    ...sections,
-                    [item.label]: !sections[item.label],
-                  }))
-                }
+                expanded={expandedSection === item.label}
+                onToggle={() => setExpandedSection((section) => (section === item.label ? null : item.label))}
                 onNavigate={() => {
                   setOpen(false);
-                  setExpandedSections({});
+                  setExpandedSection(null);
                 }}
               />
             ))}
@@ -204,7 +237,11 @@ function MenuAnchor({
 }) {
   const className = primary
     ? "flex w-full items-center rounded-md px-3 py-2.5 text-left text-base font-bold text-fg-heading transition-colors hover:bg-[color-mix(in_srgb,var(--fg-heading)_14%,transparent)] focus-visible:bg-[color-mix(in_srgb,var(--fg-heading)_14%,transparent)] focus-visible:outline-none"
-    : "flex w-full items-center gap-3 rounded-md py-2 pl-16 pr-3 text-left text-[0.95rem] font-semibold text-fg-muted transition-colors hover:bg-[color-mix(in_srgb,var(--fg-heading)_12%,transparent)] hover:text-fg-heading focus-visible:bg-[color-mix(in_srgb,var(--fg-heading)_12%,transparent)] focus-visible:text-fg-heading focus-visible:outline-none";
+    : `flex w-full items-center gap-3 rounded-md py-2 pl-16 pr-3 text-left text-[0.95rem] font-semibold transition-colors focus-visible:outline-none ${
+        item.disabled
+          ? "cursor-not-allowed text-fg-muted/60"
+          : "text-fg-muted hover:bg-[color-mix(in_srgb,var(--fg-heading)_12%,transparent)] hover:text-fg-heading focus-visible:bg-[color-mix(in_srgb,var(--fg-heading)_12%,transparent)] focus-visible:text-fg-heading"
+      }`;
   const pathLabel = displayPath(item, parentPath);
   const toggle = item.children ? (
     <button
@@ -225,7 +262,12 @@ function MenuAnchor({
   ) : (
     <span className="mx-3 h-7 w-7 shrink-0" aria-hidden="true" />
   );
-  const labelContent = <span className="min-w-0 flex-1 truncate">{item.label}</span>;
+  const labelContent = (
+    <span className="flex min-w-0 flex-1 items-center gap-2">
+      <span className="truncate">{item.label}</span>
+      {item.comingSoon && <ComingSoonBadge />}
+    </span>
+  );
   const pathContent = <span className="truncate text-xs font-semibold text-fg-muted/70">{pathLabel}</span>;
 
   if (item.children) {
@@ -275,10 +317,26 @@ function MenuAnchor({
     );
   }
 
+  if (item.disabled) {
+    return (
+      <div className={className} aria-disabled="true">
+        {content}
+      </div>
+    );
+  }
+
   return (
     <Link href={item.href} className={className} onClick={onNavigate}>
       {content}
     </Link>
+  );
+}
+
+function ComingSoonBadge() {
+  return (
+    <span className="inline-flex shrink-0 rounded-md border border-border-muted px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-fg-muted">
+      Coming soon
+    </span>
   );
 }
 
