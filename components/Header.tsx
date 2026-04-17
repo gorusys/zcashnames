@@ -3,6 +3,7 @@ import Link from "next/link";
 import HeaderMenu from "@/components/HeaderMenu";
 import StatusToggle from "@/components/StatusToggle";
 import ThemeToggle from "@/components/ThemeToggle";
+import { BRAND } from "@/lib/zns/brand";
 
 export default function Header() {
   return (
@@ -13,30 +14,14 @@ export default function Header() {
           aria-label="ZcashNames"
           className="group type-section-subtitle inline-flex items-center gap-4 whitespace-nowrap text-fg-heading font-bold tracking-tight leading-tight [[data-theme=dark]_&]:hover:opacity-80 [[data-theme=monochrome]_&]:hover:opacity-80 transition-opacity"
         >
-          <span className="relative block w-10 h-10 shrink-0 rotate-90 group-hover:rotate-0 transition-transform duration-300 ease-out">
+          <span className="relative block w-10 h-10 shrink-0">
             <Image
-              src="/landing/z4.png"
+              src={BRAND.logoPath}
               alt="ZcashNames"
-              width={56}
-              height={56}
+              width={403}
+              height={403}
               priority
-              className="theme-chrome-media w-10 h-10 [[data-theme=monochrome]_&]:hidden"
-              style={{ filter: "var(--logo-filter)" }}
-            />
-            <span
-              className="absolute inset-0 hidden [[data-theme=monochrome]_&]:block pointer-events-none"
-              style={{
-                background: "var(--fg-heading)",
-                WebkitMaskImage: "url('/landing/z4.png')",
-                maskImage: "url('/landing/z4.png')",
-                WebkitMaskSize: "contain",
-                maskSize: "contain",
-                WebkitMaskRepeat: "no-repeat",
-                maskRepeat: "no-repeat",
-                WebkitMaskPosition: "center",
-                maskPosition: "center",
-              }}
-              aria-hidden="true"
+              className="theme-chrome-media h-10 w-10"
             />
           </span>
           <span className="hidden sm:inline">ZcashNames</span>

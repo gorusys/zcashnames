@@ -44,12 +44,6 @@ html.dark {
   width: 2.5rem;
   height: 2.5rem;
   flex-shrink: 0;
-  transform: rotate(90deg);
-  transition: transform 300ms ease;
-}
-
-.docs-navbar-logo:hover .docs-navbar-logo-mark-wrap {
-  transform: rotate(0deg);
 }
 
 .docs-navbar-logo-mark {
@@ -60,17 +54,17 @@ html.dark {
 }
 
 .docs-navbar-logo-mark-image {
-  display: none;
+  display: block;
 }
 
 .docs-navbar-logo-mark-mono {
-  display: block;
+  display: none;
   position: absolute;
   inset: 0;
   background: var(--docs-fg-heading);
   pointer-events: none;
-  -webkit-mask-image: url("/landing/z4.png");
-  mask-image: url("/landing/z4.png");
+  -webkit-mask-image: url("/brandkit/zcashnames-primary-logo-white-black-square-background-403x403.png");
+  mask-image: url("/brandkit/zcashnames-primary-logo-white-black-square-background-403x403.png");
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;

@@ -20,10 +20,10 @@ const navbar = (
           aria-label="ZcashNames home"
         >
           <img
-            src="/landing/z4.png"
+            src="/brandkit/zcashnames-primary-logo-white-black-square-background-403x403.png"
             alt=""
-            width={56}
-            height={56}
+            width={403}
+            height={403}
             className="docs-navbar-logo-mark docs-navbar-logo-mark-image"
           />
           <span className="docs-navbar-logo-mark-mono" aria-hidden="true" />

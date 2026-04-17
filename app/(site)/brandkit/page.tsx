@@ -452,6 +452,7 @@ function ColorLine({ label, colors }: { label: string; colors: string[] }) {
 function AssetCard({ asset }: { asset: Asset }) {
   const src = `${assetBase}${asset.file}`;
   const svgSrc = asset.svgFile ? `${assetBase}${asset.svgFile}` : undefined;
+  const discontinued = assetLogo(asset) === "secondary";
 
   return (
     <article className="overflow-hidden rounded-lg border border-border-muted bg-[var(--color-card)]">
@@ -476,14 +477,20 @@ function AssetCard({ asset }: { asset: Asset }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a
-            href={src}
-            download
-            className="inline-flex w-fit items-center rounded-md border border-border-muted px-3 py-2 text-sm font-semibold text-fg-heading transition-colors hover:border-fg-heading"
-          >
-            Download PNG
-          </a>
-          {svgSrc && (
+          {discontinued ? (
+            <span className="inline-flex w-fit items-center rounded-md border border-border-muted bg-[var(--color-raised)] px-3 py-2 text-sm font-semibold text-fg-muted">
+              Discontinued
+            </span>
+          ) : (
+            <a
+              href={src}
+              download
+              className="inline-flex w-fit items-center rounded-md border border-border-muted px-3 py-2 text-sm font-semibold text-fg-heading transition-colors hover:border-fg-heading"
+            >
+              Download PNG
+            </a>
+          )}
+          {!discontinued && svgSrc && (
             <a
               href={svgSrc}
               download
