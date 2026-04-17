@@ -15,7 +15,7 @@ export default function DocsRootLayout({
 }) {
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
-      <Head />
+      <Head backgroundColor={{ light: "#fefcf7", dark: "#0a0a0a" }} />
       <body className={uiSans.variable}>{children}</body>
     </html>
   );

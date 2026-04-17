@@ -4,7 +4,7 @@
  * The (docs) route loads `nextra-theme-docs/style.css` (Nextra's own bundled
  * Tailwind v4 build) and does NOT load the site's globals.css. Without this
  * file, classes used by components rendered inside MDX pages - like
- * components/docs/WelcomeLanding.tsx - get stripped because Nextra's bundle
+ * components/docs/WhereToStart.tsx - get stripped because Nextra's bundle
  * was compiled against its own source set, not ours.
  *
  * This pulls in Tailwind utilities scoped to the components and MDX files we
@@ -17,47 +17,23 @@
 @source "../../content/**/*.{md,mdx}";
 
 :root {
-  --mono-0: #0f380f;
-  --mono-1: #306230;
-  --mono-2: #8bac0f;
-  --mono-3: #9bbc0f;
-  --color-background: #0a0a0a;
-  --color-raised: #1e1e1e;
-  --fg-heading: #f0f0f0;
-  --fg-muted: #8b8b8b;
-  --logo-filter: invert(1);
+  --docs-fg-heading: #f0f0f0;
   --type-section-subtitle: clamp(1.04rem, 1.2vw, 1.2rem);
 }
 
-:is(html.light, [data-theme="light"]) {
-  --color-background: #fefcf7;
-  --color-raised: #f1f3f2;
-  --fg-heading: #111318;
-  --fg-muted: #5a6378;
-  --logo-filter: none;
+html.light {
+  --docs-fg-heading: #111318;
 }
 
-:is(html.dark, [data-theme="dark"]) {
-  --color-background: #0a0a0a;
-  --color-raised: #1e1e1e;
-  --fg-heading: #f0f0f0;
-  --fg-muted: #8b8b8b;
-  --logo-filter: invert(1);
-}
-
-:is(html.monochrome, [data-theme="monochrome"]) {
-  --color-background: var(--mono-0);
-  --color-raised: var(--mono-1);
-  --fg-heading: var(--mono-3);
-  --fg-muted: var(--mono-2);
-  --logo-filter: brightness(0) invert(1) sepia(1) hue-rotate(30deg) saturate(8) brightness(0.9);
+html.dark {
+  --docs-fg-heading: #f0f0f0;
 }
 
 .docs-navbar-logo {
   display: inline-flex;
   align-items: center;
   gap: 1rem;
-  color: var(--fg-heading) !important;
+  color: var(--docs-fg-heading) !important;
   font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
   white-space: nowrap;
 }
@@ -91,7 +67,7 @@
   display: block;
   position: absolute;
   inset: 0;
-  background: var(--fg-heading);
+  background: var(--docs-fg-heading);
   pointer-events: none;
   -webkit-mask-image: url("/landing/z4.png");
   mask-image: url("/landing/z4.png");
@@ -117,15 +93,15 @@
 .nextra-navbar a[href="https://github.com/zcashme/zcashnames"] svg,
 .nextra-navbar .nextra-hamburger,
 .nextra-navbar .nextra-hamburger svg {
-  color: var(--fg-heading) !important;
+  color: var(--docs-fg-heading) !important;
   opacity: 1 !important;
 }
 
-:is(html.light, [data-theme="light"]) .docs-navbar-logo,
-:is(html.light, [data-theme="light"]) .docs-navbar-logo-text,
-:is(html.light, [data-theme="light"]) .nextra-navbar a[href="https://github.com/zcashme/zcashnames"],
-:is(html.light, [data-theme="light"]) .nextra-navbar a[href="https://github.com/zcashme/zcashnames"] svg,
-:is(html.light, [data-theme="light"]) .nextra-navbar .nextra-hamburger,
-:is(html.light, [data-theme="light"]) .nextra-navbar .nextra-hamburger svg {
+html.light .docs-navbar-logo,
+html.light .docs-navbar-logo-text,
+html.light .nextra-navbar a[href="https://github.com/zcashme/zcashnames"],
+html.light .nextra-navbar a[href="https://github.com/zcashme/zcashnames"] svg,
+html.light .nextra-navbar .nextra-hamburger,
+html.light .nextra-navbar .nextra-hamburger svg {
   color: #111318 !important;
 }

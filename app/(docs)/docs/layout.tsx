@@ -1,8 +1,8 @@
 import { Footer, Layout, Navbar } from "nextra-theme-docs";
 import { getPageMap } from "nextra/page-map";
 import Link from "next/link";
-import "../docs.css";
 import "nextra-theme-docs/style.css";
+import "../docs.css";
 
 export const metadata = {
   title: "ZcashNames Docs",
@@ -56,6 +56,7 @@ export default async function DocsLayout({
       nextThemes={{
         attribute: "class",
         defaultTheme: "dark",
+        storageKey: "zns-docs-theme",
       }}
     >
       {children}
