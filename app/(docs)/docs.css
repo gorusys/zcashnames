@@ -84,11 +84,11 @@
 }
 
 .docs-navbar-logo-mark-image {
-  filter: var(--logo-filter);
+  display: none;
 }
 
 .docs-navbar-logo-mark-mono {
-  display: none;
+  display: block;
   position: absolute;
   inset: 0;
   background: var(--fg-heading);
@@ -101,14 +101,6 @@
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
   mask-position: center;
-}
-
-:is(html.monochrome, [data-theme="monochrome"]) .docs-navbar-logo-mark-image {
-  display: none;
-}
-
-:is(html.monochrome, [data-theme="monochrome"]) .docs-navbar-logo-mark-mono {
-  display: block;
 }
 
 .docs-navbar-logo-text {
@@ -136,8 +128,4 @@
 :is(html.light, [data-theme="light"]) .nextra-navbar .nextra-hamburger,
 :is(html.light, [data-theme="light"]) .nextra-navbar .nextra-hamburger svg {
   color: #111318 !important;
-}
-
-:is(html.light, [data-theme="light"]) .docs-navbar-logo-mark-image {
-  filter: none !important;
 }
