@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Hero from "@/components/landing/Hero";
 import SearchForm from "@/components/search/SearchForm";
@@ -61,6 +61,7 @@ export default function HomePage() {
   const [waitlistConfirmed, setWaitlistConfirmed] = useState(false);
   const [isClientMounted, setIsClientMounted] = useState(false);
   const [modalTarget, setModalTarget] = useState<ModalTarget | null>(null);
+  const hasAutoOpenedFeedback = useRef(false);
 
   const {
     input,
@@ -85,6 +86,13 @@ export default function HomePage() {
   useEffect(() => {
     setIsClientMounted(true);
   }, []);
+
+  const shouldAutoOpenFeedback = isSearchMode && !hasAutoOpenedFeedback.current;
+
+  useEffect(() => {
+    if (!isSearchMode || hasAutoOpenedFeedback.current) return;
+    hasAutoOpenedFeedback.current = true;
+  }, [isSearchMode]);
 
   const form = isSearchMode ? (
     <>
@@ -298,7 +306,9 @@ export default function HomePage() {
         />
       )}
 
-      {isClientMounted && isSearchMode && <FeedbackModal defaultNetwork={network} />}
+      {isClientMounted && isSearchMode && (
+        <FeedbackModal defaultNetwork={network} openOnMount={shouldAutoOpenFeedback} />
+      )}
     </div>
   );
 }

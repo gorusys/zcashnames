@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import FeedbackPanelBody from "./FeedbackPanelBody";
 
@@ -9,15 +9,38 @@ interface Props {
   initialTesterName?: string | null;
   /** Active stage from StatusToggle — drives both checklist scoping and the report's stage column. */
   defaultNetwork: "testnet" | "mainnet";
+  /** Open the panel once after mount, used when entering search mode. */
+  openOnMount?: boolean;
 }
 
 const PANEL_WIDTH_PX = 440;
-const PANEL_BREAKPOINT_PX = 900; // below this, panel goes full-width and doesn't shift body
+const PANEL_BREAKPOINT_PX = 900; // below this, panel goes full-width
+type TooltipStep = "popout" | "report" | "checkbox" | "readme" | "contact" | "collapse";
 
-export default function FeedbackModal({ initialTesterName, defaultNetwork }: Props) {
+function nextTooltipStep(step: TooltipStep | null): TooltipStep | null {
+  switch (step) {
+    case "popout":
+      return "report";
+    case "report":
+      return "checkbox";
+    case "checkbox":
+      return "readme";
+    case "readme":
+      return "contact";
+    case "contact":
+      return "collapse";
+    default:
+      return null;
+  }
+}
+
+export default function FeedbackModal({ initialTesterName, defaultNetwork, openOnMount = false }: Props) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isWide, setIsWide] = useState(false);
+  const [tooltipStep, setTooltipStep] = useState<TooltipStep | null>(null);
+  const [hasShownTooltipSequence, setHasShownTooltipSequence] = useState(false);
+  const hasAppliedOpenOnMount = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -28,21 +51,15 @@ export default function FeedbackModal({ initialTesterName, defaultNetwork }: Pro
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Shift page content when the panel is open on wide screens. On mobile the
-  // panel covers the page (full-width) so we don't push content off-screen.
   useEffect(() => {
-    if (!mounted) return;
-    const body = document.body;
-    if (open && isWide) {
-      body.style.transition = "padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
-      body.style.paddingRight = `${PANEL_WIDTH_PX}px`;
-    } else {
-      body.style.paddingRight = "";
+    if (!mounted || !openOnMount || hasAppliedOpenOnMount.current) return;
+    hasAppliedOpenOnMount.current = true;
+    setOpen(true);
+    if (!hasShownTooltipSequence) {
+      setTooltipStep("popout");
+      setHasShownTooltipSequence(true);
     }
-    return () => {
-      body.style.paddingRight = "";
-    };
-  }, [open, isWide, mounted]);
+  }, [mounted, openOnMount, hasShownTooltipSequence]);
 
   // ESC closes the panel.
   useEffect(() => {
@@ -60,13 +77,21 @@ export default function FeedbackModal({ initialTesterName, defaultNetwork }: Pro
     boxShadow: "var(--home-result-primary-shadow)",
   };
 
+  function openPanel() {
+    setOpen(true);
+    if (!hasShownTooltipSequence) {
+      setTooltipStep("popout");
+      setHasShownTooltipSequence(true);
+    }
+  }
+
   return (
     <>
       {/* Floating launcher — hidden while the panel is open */}
       {!open && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openPanel}
           className="fixed bottom-5 right-5 z-[9999] flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold cursor-pointer transition-transform hover:-translate-y-px"
           style={primaryBtnStyle}
         >
@@ -98,6 +123,10 @@ export default function FeedbackModal({ initialTesterName, defaultNetwork }: Pro
               stage={defaultNetwork}
               initialTesterName={initialTesterName}
               onClose={() => setOpen(false)}
+              tooltipStep={tooltipStep}
+              onTooltipNext={() => setTooltipStep((step) => nextTooltipStep(step))}
+              onTooltipClose={() => setTooltipStep(null)}
+              onTooltipRestart={() => setTooltipStep("popout")}
             />
           </aside>,
           document.body,
