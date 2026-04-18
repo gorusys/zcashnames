@@ -84,7 +84,7 @@ export const COMMUNITY_SECTIONS: CommunitySection[] = [
         href: "https://github.com/zcashme/zcashnames",
         shareText: "Follow ZcashNames development on GitHub.",
         detail: "github.com/zcashme/zcashnames",
-        initials: "GH",
+        iconSrc: "/icons/github.svg",
       },
     ],
   },

@@ -133,11 +133,19 @@ function CommunityActionCard({ card }: { card: CommunityCard }) {
       <div className="flex aspect-[16/9] items-center justify-center border-b border-border-muted bg-[var(--color-raised)] p-5">
         <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-border-muted bg-[var(--color-background)] p-5">
           {card.iconSrc ? (
-            <img
-              src={card.iconSrc}
-              alt=""
-              className="h-full w-full object-contain"
-              loading="lazy"
+            <span
+              className="h-full w-full text-fg-heading"
+              style={{
+                backgroundColor: "currentColor",
+                maskImage: `url(${card.iconSrc})`,
+                maskPosition: "center",
+                maskRepeat: "no-repeat",
+                maskSize: "contain",
+                WebkitMaskImage: `url(${card.iconSrc})`,
+                WebkitMaskPosition: "center",
+                WebkitMaskRepeat: "no-repeat",
+                WebkitMaskSize: "contain",
+              }}
               aria-hidden="true"
             />
           ) : (

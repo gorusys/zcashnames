@@ -52,7 +52,9 @@ export default function Header() {
               aria-hidden="true"
             />
           </span>
-          <span className="hidden sm:inline">ZcashNames</span>
+          <span className="hidden font-normal tracking-normal sm:inline" style={{ fontFamily: "var(--font-brand)" }}>
+            ZcashNames
+          </span>
         </Link>
         <span id="site-route-title" className="ml-3 min-w-0" />
 
