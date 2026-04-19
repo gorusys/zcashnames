@@ -302,7 +302,7 @@ curl -sX POST https://light.zcash.me/zns-testnet \
 
 **Response (by address):** Returns `Registration[]` array instead of a single object.
 
-### list_for_sale
+### listings (paginated)
 
 **Request:**
 ```bash
@@ -311,8 +311,8 @@ curl -sX POST https://light.zcash.me/zns-testnet \
   -d '{
     "jsonrpc": "2.0",
     "id": 1,
-    "method": "list_for_sale",
-    "params": {}
+    "method": "listings",
+    "params": {"limit": 50, "offset": 0}
   }'
 ```
 
@@ -331,10 +331,15 @@ curl -sX POST https://light.zcash.me/zns-testnet \
         "height": 3901250,
         "signature": "CQID..."
       }
-    ]
+    ],
+    "total": 123
   }
 }
 ```
+
+**Pagination parameters:**
+- `limit`: Number of results per page (default: 50, max: 500)
+- `offset`: Starting position (default: 0)
 
 ### status
 

@@ -81,14 +81,24 @@ const registrations = await zns.resolveAddress("utest1f32kn6c4…");
 // Registration[] - can be empty if no names found
 ```
 
-### `listings()`
+### `listings(options?)`
 
-All active marketplace listings.
+All active marketplace listings, with optional pagination.
 
 ```typescript
-const items = await zns.listings();
-// Listing[]: { name, price, nonce, txid, height, signature }
+// Get first page (50 listings by default)
+const { listings, total } = await zns.listings();
+
+// Get specific page with custom limit
+const { listings, total } = await zns.listings({ limit: 100, offset: 0 });
+
+// Get next page
+const { listings, total } = await zns.listings({ limit: 100, offset: 100 });
 ```
+
+**Returns:** `{ listings: Listing[], total: number }`
+- `listings`: Array of active marketplace listings
+- `total`: Total number of listings available (use for pagination)
 
 ### `status()`
 
