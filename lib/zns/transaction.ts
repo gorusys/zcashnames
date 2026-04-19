@@ -17,6 +17,7 @@ import { normalizeUsername, isValidUsername, validateAddress, zatsToZec, type Ne
 import { type Action, MAX_LIST_FOR_SALE_AMOUNT } from "@/lib/types";
 import { verifyOtp } from "@/lib/payment/otp";
 import { getReservedName, verifyUnlockCode } from "@/lib/zns/reserved";
+import { readCurrentStage } from "@/lib/beta/gate";
 
 const NETWORK_PASSWORDS: Record<Network, string | undefined> = {
   testnet: process.env.TESTNET_PASSWORD,
@@ -27,6 +28,12 @@ function verifyNetworkPassword(network: Network, password: string | undefined): 
   const expected = NETWORK_PASSWORDS[network];
   if (!expected) return false;
   return password === expected;
+}
+
+async function verifyNetworkAccess(network: Network, password: string | undefined): Promise<boolean> {
+  if (verifyNetworkPassword(network, password)) return true;
+  const cookieStage = await readCurrentStage();
+  return cookieStage === network;
 }
 
 export async function checkUnlockCode(
@@ -71,7 +78,7 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
 
   const network: Network = input.network === "mainnet" ? "mainnet" : "testnet";
 
-  if (!verifyNetworkPassword(network, input.password)) {
+  if (!(await verifyNetworkAccess(network, input.password))) {
     return { ok: false, error: "Invalid network password." };
   }
 
@@ -87,6 +94,12 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
   const reg = ownerAction ? await resolve(name, network) : null;
   if (ownerAction) {
     if (!reg) return { ok: false, error: "Name is not registered." };
+    if (authMode === "otp" && reg.pubkey) {
+      return { ok: false, error: "This name is controlled by a keypair. Use sovereign signing." };
+    }
+    if (authMode === "sovereign" && !reg.pubkey) {
+      return { ok: false, error: "This name is controlled by passcodes. Use passcode verification." };
+    }
     if (authMode === "otp") {
       if (!input.memo || !input.otp) return { ok: false, error: "Verification required." };
       const valid = await verifyOtp(input.memo, input.otp, reg.address);
@@ -180,8 +193,8 @@ export async function buildTransaction(input: TransactionInput): Promise<Transac
       }
       case "list": {
         const maxZats = MAX_LIST_FOR_SALE_AMOUNT * 100_000_000;
-        if (!input.priceZats || input.priceZats < 100_000 || input.priceZats > maxZats) {
-          return { ok: false, error: "Price must be between 0.001 and 21,000,000 ZEC." };
+        if (input.priceZats === undefined || input.priceZats < 0 || input.priceZats > maxZats) {
+          return { ok: false, error: "Price must be between 0 and 21,000,000 ZEC." };
         }
 
         let memo: string;
