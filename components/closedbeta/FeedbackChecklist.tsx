@@ -262,35 +262,6 @@ export default function FeedbackChecklist({
                 </span>
               </button>
 
-              {isOpen && sub.id === "developer" && onOpenPopout && (
-                <div
-                  className="mt-2 mb-2 rounded-lg px-3 py-2.5 text-xs flex items-start gap-2"
-                  style={{
-                    background: "var(--color-raised)",
-                    border: "1px solid var(--border-muted)",
-                    color: "var(--fg-body)",
-                    lineHeight: 1.55,
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--fg-muted)" }} aria-hidden="true">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                    <polyline points="15 3 21 3 21 9" />
-                    <line x1="10" y1="14" x2="21" y2="3" />
-                  </svg>
-                  <span>
-                    Tip: <button
-                      type="button"
-                      onClick={onOpenPopout}
-                      className="underline cursor-pointer font-semibold"
-                      style={{ color: "var(--fg-heading)" }}
-                    >
-                      open the feedback panel in a new window
-                    </button>
-                    .
-                  </span>
-                </div>
-              )}
-
               {isOpen && (
                 <ul className="flex flex-col gap-1.5 mt-2">
                   {sub.items.map((item, index) => {

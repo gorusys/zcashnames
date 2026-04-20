@@ -67,6 +67,24 @@ Response format:
 }
 ```
 
+## All registrations (paginated)
+
+Pass an empty `query` to list every registration. Useful for explorers, offline snapshots, and parity-checking the SDK's `listAllRegistrations` helper.
+
+```sh
+# First 50 registrations
+curl -sX POST https://light.zcash.me/zns-testnet \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"resolve","params":{"query":"","limit":50,"offset":0}}'
+
+# Next page
+curl -sX POST https://light.zcash.me/zns-testnet \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"resolve","params":{"query":"","limit":50,"offset":50}}'
+```
+
+Same `{ registrations, total }` shape as the by-address branch. `limit` defaults to 50 and is capped at 500 server-side. Compare `total` against `status.registered` — they should match.
+
 ## Listings (paginated)
 
 ```sh

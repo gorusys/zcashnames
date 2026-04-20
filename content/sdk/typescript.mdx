@@ -72,29 +72,50 @@ const reg = await zns.resolveName("alice");
 const notFound = await zns.resolveName("nonexistent"); // null
 ```
 
-### `resolveAddress(address)`
+### `resolveAddress(address, limit?, offset?)`
 
-Look up all names registered to an address.
+Look up all names registered to an address. Paginated — `limit` defaults to 50 and is capped at 500, `offset` defaults to 0.
 
 ```typescript
 const registrations = await zns.resolveAddress("utest1f32kn6c4…");
 // Registration[] - can be empty if no names found
+
+// Explicit pagination
+const page2 = await zns.resolveAddress("utest1f32kn6c4…", 50, 50);
 ```
 
-### `listings(options?)`
+Positional arguments — not an options object. Wire method is `resolve` with `{ query: <address>, limit, offset }`; the indexer returns `{ registrations, total }` and the SDK unwraps to the bare array.
 
-All active marketplace listings, with optional pagination.
+### `listAllRegistrations(limit?, offset?)`
+
+Every registered name, paginated. Useful for explorers, offline snapshots, and parity-checking the SDK against the raw RPC.
+
+```typescript
+// Default page (50 rows)
+const rows = await zns.listAllRegistrations();
+
+// Explicit pagination (max limit: 500)
+const next = await zns.listAllRegistrations(50, 50);
+```
+
+Positional arguments. There is no separate wire method: this is `resolve` with `{ query: "", limit, offset }`. The indexer returns `{ registrations, total }`; the SDK unwraps to the bare array.
+
+### `listings(limit?, offset?)`
+
+All active marketplace listings, paginated. `limit` defaults to 50 and is capped at 500.
 
 ```typescript
 // Get first page (50 listings by default)
 const { listings, total } = await zns.listings();
 
 // Get specific page with custom limit
-const { listings, total } = await zns.listings({ limit: 100, offset: 0 });
+const { listings, total } = await zns.listings(100, 0);
 
 // Get next page
-const { listings, total } = await zns.listings({ limit: 100, offset: 100 });
+const { listings, total } = await zns.listings(100, 100);
 ```
+
+Positional arguments — not an options object.
 
 **Returns:** `{ listings: Listing[], total: number }`
 - `listings`: Array of active marketplace listings

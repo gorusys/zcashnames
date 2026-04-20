@@ -38,13 +38,13 @@ export const BETA_CHECKLIST: ChecklistItem[] = [
   { id: "ux-d3", label: "6. Release name", hint: "Let go of the name you bought and return it to the unowned state.", section: "Signature Authorization", group: "user" },
 
   // ── Developer experience ────────────────────────────────────────────────
-  // Order: read the doc, then try the thing it documents.
-  { id: "review-typescript-ref", label: "Review the TypeScript SDK reference", link: { href: "/docs/sdk/typescript" }, group: "developer" },
-  { id: "resolve-sdk",           label: "Resolve a name via the SDK", group: "developer" },
-  { id: "review-direct-rpc",     label: "Review the direct JSON-RPC reference", link: { href: "/docs/sdk/direct-rpc" }, group: "developer" },
-  { id: "resolve-rpc",           label: "Resolve a name via the raw JSON-RPC API", group: "developer" },
-
-  // ── Catch-all (per group, independent) ──────────────────────────────────
-  // These are separate items on purpose — a comment about user flow and a
-  { id: "other-developer", label: "General questions, comments, or anything else", group: "developer" },
+  // Order: read the guide first, then exercise each capability on both surfaces.
+  // Each checkbox is a parity tick: "SDK call and raw JSON-RPC return equivalent data."
+  { id: "review-dev-guide",   label: "Review the ZNS developer guide", link: { href: "/docs/zns-developer-guide" }, group: "developer" },
+  { id: "dev-status",         label: "Check indexer health",           hint: "Call zns.status() and the raw JSON-RPC status. Confirm synced_height, admin_pubkey, uivk, registered, listed, and pricing match for the active network.", group: "developer" },
+  { id: "dev-resolve-name",   label: "Resolve a claimed name",         hint: "Pick a name from Explorer. Confirm zns.resolveName(name) matches raw JSON-RPC resolve with { query: name }.", group: "developer" },
+  { id: "dev-listings",       label: "Page active listings",           hint: "Call zns.listings(limit, offset) and raw JSON-RPC listings with the same params. Confirm listings and total.", group: "developer" },
+  { id: "dev-registrations",  label: "Fetch all registrations",        hint: "Call zns.listAllRegistrations(limit, offset) and raw JSON-RPC resolve with { query: \"\", limit, offset }. Compare pagination and totals against Explorer's Registered tab.", group: "developer" },
+  { id: "dev-events-page",    label: "Page all events",                hint: "Call zns.events({ limit, offset }) and raw JSON-RPC events with the same params. Confirm page size, newest-first ordering, and total.", group: "developer" },
+  { id: "dev-events-history", label: "Fetch one name's event history", hint: "Call zns.events({ name, limit, offset }) for a claimed name and raw JSON-RPC events with the same params. Confirm the returned history matches Explorer.", group: "developer" },
 ];
