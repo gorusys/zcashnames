@@ -41,7 +41,7 @@ export default function BetaApplyBar() {
         Bounty
       </span>
       <span className="truncate">
-        Create an indexer, find bugs, earn ZEC.{" "}
+        Find bugs in our indexer to earn ZEC.{" "}
         <span className="font-bold underline">Learn more &rarr;</span>
       </span>
     </Link>

@@ -25,7 +25,7 @@ function buildUid() {
 
 const inputStyle: React.CSSProperties = {
   background: "var(--color-raised)",
-  border: "1.5px solid var(--faq-border)",
+  border: "1.5px solid light-dark(rgba(31, 41, 55, 0.26), rgba(255, 255, 255, 0.24))",
   color: "var(--fg-heading)",
 };
 
@@ -52,6 +52,13 @@ const primaryBtnStyle: React.CSSProperties = {
   background: "var(--home-result-primary-bg)",
   color: "var(--home-result-primary-fg)",
   boxShadow: "var(--home-result-primary-shadow)",
+};
+
+const titleStyle: React.CSSProperties = {
+  color: "var(--fg-heading)",
+  fontSize: "1.35rem",
+  fontWeight: 700,
+  marginBottom: "0.85rem",
 };
 
 export default function IndexerLaunchAlertForm() {
@@ -148,7 +155,7 @@ export default function IndexerLaunchAlertForm() {
       <div
         className="rounded-2xl border p-6 text-center md:p-8"
         style={{
-          background: "var(--feature-card-bg)",
+          background: "var(--color-raised)",
           borderColor: "var(--faq-border)",
         }}
       >
@@ -172,7 +179,7 @@ export default function IndexerLaunchAlertForm() {
             <path d="M20 6 9 17l-5-5" />
           </svg>
         </span>
-        <h2 className="text-xl font-bold" style={{ color: "var(--fg-heading)" }}>
+        <h2 style={titleStyle}>
           You&apos;re on the alert list
         </h2>
         <p className="mt-3 text-sm" style={{ color: "var(--fg-body)", lineHeight: 1.7 }}>
@@ -190,12 +197,12 @@ export default function IndexerLaunchAlertForm() {
       onSubmit={handleSubmit}
       className="rounded-2xl border p-6 md:p-8"
       style={{
-        background: "var(--feature-card-bg)",
+        background: "var(--color-raised)",
         borderColor: "var(--faq-border)",
       }}
     >
       <div className="mb-5">
-        <h2 className="text-2xl font-bold tracking-tight" style={{ color: "var(--fg-heading)" }}>
+        <h2 style={titleStyle}>
           Get an alert when the program is posted
         </h2>
         <p className="mt-3 text-sm" style={{ color: "var(--fg-body)", lineHeight: 1.7 }}>

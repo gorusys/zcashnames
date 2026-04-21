@@ -79,7 +79,7 @@ export default function IndexerBugBountyPage() {
             <IndexerLaunchAlertForm />
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <Link
               href="/docs"
               className="inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-sm font-semibold transition-opacity hover:opacity-85"
@@ -90,6 +90,19 @@ export default function IndexerBugBountyPage() {
               }}
             >
               Read the docs
+            </Link>
+            <Link
+              href="https://github.com/zcashme/ZNS/tree/master"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-sm font-semibold transition-opacity hover:opacity-85"
+              style={{
+                borderColor: "var(--border-muted)",
+                color: "var(--fg-body)",
+                textDecoration: "none",
+              }}
+            >
+              View the code
             </Link>
           </div>
         </section>
