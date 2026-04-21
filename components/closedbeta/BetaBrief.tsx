@@ -189,56 +189,6 @@ export default function BetaBrief() {
 
       <hr style={divider} />
 
-      {/* How It Works */}
-      <section id="how-it-works">
-        <h2 style={h2}>How It Works</h2>
-        <p style={p}>
-          You send a shielded transaction to the ZNS registry address with a
-          specifically formatted memo. The indexer picks it up, validates the
-          admin signature, and updates the registry. Names are resolved with a simple
-          JSON-RPC call to the indexer.
-        </p>
-        <p style={p}>
-          For actions that require proving you own the name (update, list, delist,
-          release), there is a one-time-password flow: you send a tiny verification
-          transaction and receive a 6-digit code back in your memo. The One-Time Passcode (OTP) flow
-          proves that you control the unified address linked to the registered name.
-          You enter that OTP in the UI to authorize the action.
-        </p>
-      </section>
-
-      <hr style={divider} />
-
-      {/* Structure */}
-      <section id="structure">
-        <h2 style={h2}>Beta Structure</h2>
-
-        <h3 style={h3}>Phase 1: Testnet</h3>
-        <p style={p}>
-          Try everything on testnet first where no real ZEC involved. I&rsquo;ll send you
-          a passphrase to a wallet containing TAZ (Testnet Acquired Zcash). Testnet names registered during beta may persist after the
-          program ends.
-        </p>
-
-        <h3 style={h3}>Phase 2: Mainnet</h3>
-        <p style={p}>
-          Try the same flows on mainnet but at 1/100th of full pricing. I&rsquo;ll send you a passphrase to a wallet containing {" "}
-          <strong>0.125 ZEC</strong> at the start of this phase to cover
-          your beta test costs with room to spare.
-        </p>
-        <p style={p}>
-          One thing to be clear about upfront:{" "}
-          <strong>mainnet beta names will be wiped when the program ends.</strong>{" "}
-          This is a demo environment running at reduced prices. When beta closes,
-           the registry resets and the pricing moves to full rates.
-        </p>
-        <p style={p}>
-          The 0.125 ZEC is yours to use for testing. Whatever&rsquo;s left over when
-          the program ends is yours to keep or donate.
-        </p>
-      </section>
-
-      <hr style={divider} />
 
       {/* What to Test */}
       <section id="what-to-test">
@@ -349,6 +299,25 @@ export default function BetaBrief() {
 
       <hr style={divider} />
 
+      {/* How It Works */}
+      <section id="how-it-works">
+        <h2 style={h2}>How It Works</h2>
+        <p style={p}>
+          You send a shielded transaction to the ZNS registry address with a
+          specifically formatted memo. The indexer picks it up, validates the
+          admin signature, and updates the registry. Names are resolved with a simple
+          JSON-RPC call to the indexer.
+        </p>
+        <p style={p}>
+          For actions that require proving you own the name (update, list, delist,
+          release), there is a one-time-password flow: you send a tiny verification
+          transaction and receive a 6-digit code back in your memo. The One-Time Passcode (OTP) flow
+          proves that you control the unified address linked to the registered name.
+          You enter that OTP in the UI to authorize the action.
+        </p>
+      </section>
+
+      <hr style={divider} />
       {/* Confidentiality */}
       <section id="before-bug">
         <h2 style={h2}>Confidentiality</h2>
@@ -410,9 +379,8 @@ export default function BetaBrief() {
       <section id="timeline">
         <h2 style={h2}>Timeline</h2>
         <p style={p}>
-          Rough target: Phase 1 starts within the next two weeks once I confirm
-          everyone is onboarded. I&rsquo;ll share the private repo, the endpoint URLs,
-          and a testnet wallet passphrase once you confirm you&rsquo;re in.
+          Rough target: testing starts within the next two weeks once I confirm
+          everyone is onboarded. I&rsquo;ll share the passcode and a wallet passphrase once you confirm you&rsquo;re in.
         </p>
       </section>
 
