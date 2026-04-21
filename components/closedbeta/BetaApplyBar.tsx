@@ -5,11 +5,10 @@ import { usePathname } from "next/navigation";
 import { useStatus } from "@/components/StatusToggle";
 
 /**
- * Site-wide announcement bar pointing to /closedbeta/apply.
+ * Site-wide announcement bar pointing to /indexerbb.
  *
  * Shown only on the home page in waitlist mode (i.e. visitors who haven't
- * unlocked Mainnet/Testnet). Hidden on /closedbeta routes themselves so we
- * don't badge people who already know about the program.
+ * unlocked Mainnet/Testnet).
  *
  * Colors come from --announce-bar-* CSS variables in globals.css and adapt to
  * the active theme (dark / light / monochrome).
@@ -24,7 +23,7 @@ export default function BetaApplyBar() {
 
   return (
     <Link
-      href="/closedbeta/apply"
+      href="/indexerbb"
       className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[0.72rem] sm:text-sm font-semibold transition-opacity hover:opacity-90 whitespace-nowrap"
       style={{
         background: "var(--announce-bar-bg)",
@@ -39,11 +38,11 @@ export default function BetaApplyBar() {
           color: "var(--announce-bar-pill-fg)",
         }}
       >
-        Beta
+        Bounty
       </span>
       <span className="truncate">
-        Try it, find bugs, earn ZEC.{" "}
-        <span className="font-bold underline">Apply &rarr;</span>
+        Create an indexer, find bugs, earn ZEC.{" "}
+        <span className="font-bold underline">Learn more &rarr;</span>
       </span>
     </Link>
   );

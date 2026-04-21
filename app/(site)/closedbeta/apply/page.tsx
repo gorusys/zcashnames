@@ -27,16 +27,15 @@ export default function BetaApplyPage() {
           className="text-3xl md:text-4xl font-bold tracking-tight"
           style={{ color: "var(--fg-heading)", marginBottom: "0.75rem" }}
         >
-          Apply to the ZcashNames Beta
+          No longer accepting applications
         </h1>
         <p
           className="text-base"
           style={{ color: "var(--fg-body)", lineHeight: 1.65 }}
         >
-          We&rsquo;re running a small,
-          high-signal beta. We're seeking a few testers to provide lots of feedback. Tell us a bit about yourself. 
-          If there&rsquo;s a spot for you, we&rsquo;ll reach out via your
-          preferred contact with an invite code.
+          The closed beta application window is currently closed. If you already
+          submitted, we&rsquo;ll follow up using your preferred contact method if
+          a spot opens or we need more information.
         </p>
         <p
           className="text-sm mt-3"
@@ -53,6 +52,25 @@ export default function BetaApplyPage() {
           .
         </p>
       </header>
+
+      <section
+        className="mb-8 rounded-2xl border px-5 py-4 text-left"
+        style={{
+          background: "var(--color-raised)",
+          borderColor: "var(--border-muted)",
+        }}
+      >
+        <p
+          className="text-sm font-semibold"
+          style={{ color: "var(--fg-heading)" }}
+        >
+          Applications are closed.
+        </p>
+        <p className="mt-2 text-sm" style={{ color: "var(--fg-body)", lineHeight: 1.65 }}>
+          The original form remains below for reference only. New submissions are
+          not being actively accepted at this time.
+        </p>
+      </section>
 
       <BetaApplicationForm />
     </div>
