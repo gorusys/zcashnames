@@ -2,27 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { submitBetaApplication } from "@/lib/beta/actions";
-
-const CONTACT_KINDS = ["email", "signal", "discord", "x", "telegram", "forum"] as const;
-type ContactKind = (typeof CONTACT_KINDS)[number];
-
-const CONTACT_LABEL: Record<ContactKind, string> = {
-  email: "Email",
-  signal: "Signal",
-  discord: "Discord",
-  x: "X / Twitter",
-  telegram: "Telegram",
-  forum: "Zcash Community Forum",
-};
-
-const CONTACT_PLACEHOLDER: Record<ContactKind, string> = {
-  email: "you@example.com",
-  signal: "@yourhandle or signal username",
-  discord: "@yourhandle",
-  x: "@yourhandle",
-  telegram: "@yourhandle",
-  forum: "@username on forum.zcashcommunity.com",
-};
+import {
+  CONTACT_KINDS,
+  CONTACT_LABEL,
+  CONTACT_PLACEHOLDER,
+  type ContactKind,
+} from "@/lib/contact-methods";
 
 interface ContactRow {
   uid: string; // stable react key, distinct from kind so user can change kind

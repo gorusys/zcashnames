@@ -15,6 +15,7 @@ import {
   setStageCookie,
 } from "./gate";
 import { sendBetaApplicationNotice } from "@/lib/email/beta-application";
+import { CONTACT_KINDS, type ContactKind } from "@/lib/contact-methods";
 
 const FEEDBACK_BUCKET = "beta-feedback";
 
@@ -332,9 +333,6 @@ export async function loadChecklistProgress(
 // reviews rows in the Supabase table editor and DMs the code to chosen
 // applicants. The applicant never sees the code in the response.
 // ---------------------------------------------------------------------------
-
-const CONTACT_KINDS = ["email", "signal", "discord", "x", "telegram", "forum"] as const;
-type ContactKind = (typeof CONTACT_KINDS)[number];
 
 export type BetaApplicationResult =
   | { ok: true }
